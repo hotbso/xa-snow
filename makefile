@@ -34,6 +34,16 @@ win:
 	CC=x86_64-w64-mingw32-gcc \
 	CXX=x86_64-w64-mingw32-g++ \
 	go build --buildmode c-shared -o build/XA-snow/win.xpl main.go
+msys2:
+	CGO_CFLAGS="-DIBM=1 -static -O0 -g" \
+	CGO_LDFLAGS="-L${CURDIR}/Libraries/Win -lXPLM_64 -static-libgcc -static-libstdc++" \
+	GOOS=windows \
+	GOARCH=amd64 \
+	CGO_ENABLED=1 \
+	CC=gcc \
+	CXX=g++ \
+	go build --buildmode c-shared -o build/XA-snow/win.xpl main.go
+	cp -p build/XA-snow/win.xpl /E/X-Plane-12/Resources/plugins/XA-snow/.
 lin:
 	GOOS=linux \
 	GOARCH=amd64 \
