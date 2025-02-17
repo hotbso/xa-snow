@@ -295,15 +295,15 @@ StartAsyncDownload(bool sys_time, int month, int day, int hour)
 bool
 CheckAsyncDownload()
 {
-    if (!download_active)
-        return false;
+    if (download_active) {
+        if (std::future_status::ready != download_future.wait_for(std::chrono::seconds::zero()))
+            return true;
 
-    if (std::future_status::ready != download_future.wait_for(std::chrono::seconds::zero()))
-        return false;
+        download_active = false;
+        bool res = download_future.get();
+        log_msg("Download status: %d", res);
+        snod_map = std::move(new_snod_map);     // activate the new map
+    }
 
-    download_active = false;
-    bool res = download_future.get();
-    log_msg("Download status: %d", res);
-    snod_map = std::move(new_snod_map);     // activate the new map
-    return true;
+    return download_active;
 }

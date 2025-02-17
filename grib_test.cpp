@@ -37,9 +37,9 @@ std::string output_dir;
 static void
 flightloop_emul()
 {
-    while (! CheckAsyncDownload()) {
+    while (CheckAsyncDownload()) {
         log_msg("... waiting for async download");
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
 

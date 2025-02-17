@@ -339,7 +339,7 @@ XPluginStop(void)
 {
     // As an async can not be cancelled we have to wait
     // and collect the status. Otherwise X Plane won't shut down.
-    while (! CheckAsyncDownload()) {
+    while (CheckAsyncDownload()) {
         log_msg("... waiting for async download to finish");
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
