@@ -1,6 +1,7 @@
 //
-//    A contribution to https://github.com/xairline/xa-snow
+//    X Airline Snow: show accumulated snow in X-Plane's world
 //
+//    Copyright (C) 2025  Zodiac1214
 //    Copyright (C) 2025  Holger Teutsch
 //
 //    This library is free software; you can redistribute it and/or
@@ -19,39 +20,32 @@
 //    USA
 //
 
-#ifndef _XA_SNOW_CGO_H_
-#define _XA_SNOW_CGO_H_
 
-// contains the C functions that are presented to go
-#include <stdbool.h>
+#include <cstdio>
+#include <cstdarg>
+#include <cstring>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void InitXaSnowC();
-float LegacyAirportSnowDepth(float snow_depth);		// -> adjusted snow depth
-
-// some glue for golang
-bool CoastMapInit(const char *dir);
-bool CMIsWater(int i, int j);
-bool CMIsLand(int i, int j);
-
-typedef
-struct R_IsCoast_ {
-    bool yes_no;
-    int dir_x, dir_y, grid_angle;
-} R_IsCoast;
-R_IsCoast CMIsCoast(int i, int j);
-
-typedef
-struct R_SnowDepthToXplaneSnowNow_ {
-    float snowNow, snowAreaWidth, iceNow;
-} R_SnowDepthToXplaneSnowNow;
-R_SnowDepthToXplaneSnowNow CSnowDepthToXplaneSnowNow(float depth);
-
-#ifdef __cplusplus
+#ifdef LOCAL_DEBUGSTRING
+void
+XPLMDebugString(const char *str)
+{
+    fputs(str, stdout); fflush(stdout);
 }
+#else
+#include "XPLMUtilities.h"
 #endif
 
-#endif
+extern "C"
+void
+log_msg(const char *fmt, ...)
+{
+    char line[1024];
+
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(line, sizeof(line) - 3, fmt, ap);
+    strcat(line, "\n");
+    XPLMDebugString("xa-snow: ");
+    XPLMDebugString(line);
+    va_end(ap);
+}

@@ -27,10 +27,9 @@ static float constexpr kArptSnow = 0.07;        // m snow snow on ground
 static float constexpr kSnowLim200ft = 0.11;    // m snow limit if above 200ft AGL
 static float constexpr k200ft = 200 * kF2M;     // m 200ft
 
-static float constexpr kMecSlope = 5;       // ° slope towards MEC
-static float constexpr kMecOfs = 100.0;     // m vertical
+static float constexpr kMecSlope = 0.087f;      // 5° slope towards MEC
 
-extern "C" float
+float
 LegacyAirportSnowDepth(float snow_depth)		// -> adjusted snow depth
 {
     if (snow_depth < kArptSnow)
@@ -60,13 +59,13 @@ LegacyAirportSnowDepth(float snow_depth)		// -> adjusted snow depth
             }
 
             float haa = XPLMGetDataf(plane_elevation_dr) - arpt->elevation;
-            float ref_haa = dist * 0.087f;              // a 5° slope into the center
+            float ref_haa = dist * kMecSlope;           // slope from center
             float dh = std::max(0.0f, haa - ref_haa);   // a delta above ref slope
             float ref_dist = dist + 10.0f * dh;         // is weighted higher
 
             // now interpolate down to kArptSnow at the MEC
             float a = (ref_dist - arpt->mec_radius) / (kArptLimit - arpt->mec_radius);
-            a = clampf(a, 0.0f, 1.0f);
+            a = std::max(0.0f, std::min(a, 1.0f));
             snow_depth = kArptSnow + a * (std::min(snow_depth, 0.25f) - kArptSnow);
 
             // keep snow at limit if above 200ft AGL, below height blending comes in

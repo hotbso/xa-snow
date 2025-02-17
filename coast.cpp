@@ -1,6 +1,7 @@
 //
-//    A contribution to https://github.com/xairline/xa-snow by zodiac1214
+//    X Airline Snow: show accumulated snow in X-Plane's world
 //
+//    Copyright (C) 2025  Zodiac1214
 //    Copyright (C) 2025  Holger Teutsch
 //
 //    This library is free software; you can redistribute it and/or
@@ -24,13 +25,11 @@
 #include <cmath>
 #include <string>
 #include <tuple>
-#include <spng.h> // For image processing
 
 #include "xa-snow.h"
+#include <spng.h> // For image processing, include after xa-snow.h
 
-// water map in 0.1° resolution
-static constexpr int n_wm = 3600;
-static constexpr int m_wm = 1800;
+
 
 // we use a "grid direction" = 360°/45° in standard math convention
 // 0 -> x, 2 -> y, 4 -> -x, ...
@@ -43,19 +42,7 @@ enum State {
     sCoast
 };
 
-struct CoastMap {
-    uint8_t wmap [n_wm][m_wm];		// encoded as (dir << 2)|sXxx
-
-    void wrap_ij(int i, int j, int &wrapped_i, int& wrapped_j);
-
-  public:
-    bool load(const std::string& dir);
-    bool is_water(int i, int j);
-    bool is_land(int i, int j);
-    std::tuple<bool, int, int, int> is_coast(int i, int j); // -> yes_no, dir_x, dir_y, grid_angle
-};
-
-static CoastMap coast_map;
+CoastMap coast_map;
 
 void
 CoastMap::wrap_ij(int i, int j, int &wrapped_i, int& wrapped_j) {
@@ -236,36 +223,6 @@ CoastMap::load(const std::string& dir)
     }
 
     return true;
-}
-
-// C++ to C translations that will eventually go away
-#include "xa-snow-cgo.h"
-
-extern "C"
-bool CoastMapInit(const char *dir)
-{
-    log_msg("CoastMapInit '%s'", dir);
-    return coast_map.load(dir);
-}
-
-extern "C"
-bool CMIsWater(int i, int j)
-{
-    return coast_map.is_water(i, j);
-}
-
-extern "C"
-bool CMIsLand(int i, int j)
-{
-    return coast_map.is_land(i, j);
-}
-
-extern "C"
-R_IsCoast CMIsCoast(int i, int j)
-{
-    R_IsCoast r;
-    std::tie(r.yes_no, r.dir_x, r.dir_y, r.grid_angle) = coast_map.is_coast(i, j);
-    return r;
 }
 
 #ifdef TEST_COAST

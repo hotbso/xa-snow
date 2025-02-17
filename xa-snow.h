@@ -25,6 +25,7 @@
 #include <string>
 #include <tuple>
 #include <numbers>
+#include <memory>
 
 #define XPLM200
 #define XPLM210
@@ -44,11 +45,42 @@ extern XPLMDataRef plane_lat_dr, plane_lon_dr, plane_elevation_dr, plane_true_ps
 extern XPLMProbeInfo_t probeinfo;
 extern XPLMProbeRef probe_ref;
 
-
 extern std::string xp_dir;
+extern std::string plugin_dir;
+extern std::string output_dir;
 
 // functions
-extern void log_msg(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+extern "C" void log_msg(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+extern "C" bool HttpGet(const char *url, FILE *f, int timeout);
+extern int sub_exec(const std::string& command);
+
+void StartAsyncDownload(bool sys_time, int day, int month, int hour);
+bool CheckAsyncDownload();
+
+
+struct CoastMap {
+    // water map in 0.1° resolution
+    static constexpr int n_wm = 3600;
+    static constexpr int m_wm = 1800;
+
+    uint8_t wmap [n_wm][m_wm];		// encoded as (dir << 2)|sXxx
+
+    void wrap_ij(int i, int j, int &wrapped_i, int& wrapped_j);
+
+  public:
+    bool load(const std::string& dir);
+    bool is_water(int i, int j);
+    bool is_land(int i, int j);
+    std::tuple<bool, int, int, int> is_coast(int i, int j); // -> yes_no, dir_x, dir_y, grid_angle
+};
+
+class DepthMap;
+extern std::unique_ptr<DepthMap> snod_map, new_snod_map;
+
 extern std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth); // snowNow, snowAreaWidth, iceNow
+
+extern CoastMap coast_map;
+extern int CreateSnowMapPng(const DepthMap& grib_snod_map, const DepthMap& snod_map,
+                            const std::string& png_path);
 
 #endif

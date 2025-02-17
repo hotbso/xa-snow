@@ -130,12 +130,6 @@ struct SceneryPacks {
 };
 
 extern bool CollectAirports(const std::string& xp_dir);
+extern float LegacyAirportSnowDepth(float snow_depth);		// -> adjusted snow depth
 
-static inline float
-clampf(float x, float min, float max)
-{
-    if (x < min) return min;
-    if (x > max) return max;
-    return x;
-}
 #endif

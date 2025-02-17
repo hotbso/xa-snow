@@ -52,6 +52,5 @@ Enabling this option smoothly reduces snow depth when you approach such an airpo
 ## Credits
 zodiac1214 for creating the plugin https://github.com/zodiac1214 \
 randy408 for providing libspng https://github.com/randy408/libspng, see LICENSE-libspng\
-richgel999 for providing miniz https://github.com/richgel999/miniz, see LICENSE-miniz\
 go to C++ conversion with help of https://www.codeconvert.ai/golang-to-c++-converter
 
