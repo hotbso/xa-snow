@@ -20,7 +20,7 @@
 //    USA
 //
 
-// Coding style is loosely following Google guide: https://google.github.io/styleguide/cppguide.html
+// Coding style is loosely following Google's guide: https://google.github.io/styleguide/cppguide.html
 
 #include <cstring>
 #include <cstdio>

@@ -1,6 +1,7 @@
 //
-//    A contribution to https://github.com/xairline/xa-snow by zodiac1214
+//    X Airline Snow: show accumulated snow in X-Plane's world
 //
+//    Copyright (C) 2025  Zodiac1214
 //    Copyright (C) 2025  Holger Teutsch
 //
 //    This library is free software; you can redistribute it and/or
@@ -223,38 +224,6 @@ CoastMap::load(const std::string& dir)
 
     return true;
 }
-
-#if 0
-// C++ to C translations that will eventually go away
-#include "xa-snow-cgo.h"
-
-extern "C"
-bool CoastMapInit(const char *dir)
-{
-    log_msg("CoastMapInit '%s'", dir);
-    return coast_map.load(dir);
-}
-
-extern "C"
-bool CMIsWater(int i, int j)
-{
-    return coast_map.is_water(i, j);
-}
-
-extern "C"
-bool CMIsLand(int i, int j)
-{
-    return coast_map.is_land(i, j);
-}
-
-extern "C"
-R_IsCoast CMIsCoast(int i, int j)
-{
-    R_IsCoast r;
-    std::tie(r.yes_no, r.dir_x, r.dir_y, r.grid_angle) = coast_map.is_coast(i, j);
-    return r;
-}
-#endif
 
 #ifdef TEST_COAST
 // g++ -DTEST_COAST -std=c++20 -DLOCAL_DEBUGSTRING -DIBM -Wall -Werror -ISDK/CHeaders/XPLM -Iservices/ services/coast.cpp services/log_msg.cpp  -l:libpng.a -l:libz.a
