@@ -31,9 +31,12 @@ jobs:
       - name: Build Windows binaries
         shell: msys2 {0}
         run: |
-            export VERSION=${GITHUB_REF##*/}
-            make -f Makefile.mgw64
-            ls -lR ./build
+          TAG=${GITHUB_REF##*/}
+          if [ ! -z "$TAG" ]; then
+            echo "VERSION=$TAG" > version.mak
+          fi
+          make -f Makefile.mgw64
+          ls -lR ./build
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
@@ -53,7 +56,10 @@ jobs:
         run: |
           set -x
           sudo apt-get -y install libcurl4-openssl-dev
-          export VERSION=${GITHUB_REF##*/}
+          TAG=${GITHUB_REF##*/}
+          if [ ! -z "$TAG" ]; then
+            echo "VERSION=$TAG" > version.mak
+          fi
           make -f Makefile.lin64
           ls -lR ./build
 
@@ -78,7 +84,10 @@ jobs:
 
       - run: |
           set -x
-          export VERSION=${GITHUB_REF##*/}
+          TAG=${GITHUB_REF##*/}
+          if [ ! -z "$TAG" ]; then
+            echo "VERSION=$TAG" > version.mak
+          fi
           make -f Makefile.mac64
 
       - name: Download Build Artifacts
