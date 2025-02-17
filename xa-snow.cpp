@@ -27,6 +27,7 @@
 #include <string>
 #include <fstream>
 #include <filesystem>
+#include <thread>
 
 #include "xa-snow.h"
 
@@ -336,6 +337,12 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
 PLUGIN_API void
 XPluginStop(void)
 {
+    // As an async can not be cancelled we have to wait
+    // and collect the status. Otherwise X Plane won't shut down.
+    while (! CheckAsyncDownload()) {
+        log_msg("... waiting for async download to finish");
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
 }
 
 PLUGIN_API int
