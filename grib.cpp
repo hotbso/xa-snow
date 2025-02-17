@@ -252,7 +252,7 @@ DownloadAndProcessGribFile(bool sys_time, int month, int day, int hour)
     grib_snod_map->load_csv(snod_csv_name);
     new_snod_map = grib_snod_map->extend_coastal_snow();
 
- CreateSnowMapPng(*grib_snod_map, *new_snod_map, "snow_depth.png");
+    CreateSnowMapPng(*grib_snod_map, *new_snod_map, "snow_depth.png");
     return true;
 }
 
