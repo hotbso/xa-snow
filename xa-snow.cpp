@@ -27,6 +27,7 @@
 #include <string>
 #include <fstream>
 #include <filesystem>
+#include <array>
 #include <thread>
 
 #include "xa-snow.h"
@@ -57,15 +58,14 @@ static int override_item, rwy_ice_item, historical_item, autoupdate_item, limit_
 
 static int loop_cnt;
 
-// Initialize static member variables
-static const std::vector<float> snowDepthTab     = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
-static const std::vector<float> snowNowTab       = {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
-static const std::vector<float> snowAreaWidthTab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
-static const std::vector<float> iceNowTab        = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
-
 std::tuple<float, float, float>
 SnowDepthToXplaneSnowNow(float depth) // snowNow, snowAreaWidth, iceNow
 {
+    static const std::array<float, 7> snowDepthTab     = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
+    static const std::array<float, 7> snowNowTab       = {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
+    static const std::array<float, 7> snowAreaWidthTab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
+    static const std::array<float, 7> iceNowTab        = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
+
     if (depth >= snowDepthTab.back()) {
         return std::make_tuple(snowNowTab.back(), snowAreaWidthTab.back(), iceNowTab.back());
     }
