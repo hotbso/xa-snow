@@ -218,7 +218,7 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
     loop_cnt++;
     if (snod_map == nullptr) {
         log_msg("... waiting for snow map");
-        return 5.0f;
+        return 1.0f;
     }
 
     // throttle computations
