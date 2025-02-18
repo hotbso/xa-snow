@@ -52,9 +52,9 @@ XPLMProbeRef probe_ref;
 static XPLMMenuID xas_menu;
 
 // preferences
-static int pref_override, pref_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow;
+static int pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow;
 // associated menu ids
-static int override_item, rwy_ice_item, historical_item, autoupdate_item, limit_snow_item;
+static int override_item, no_rwy_ice_item, historical_item, autoupdate_item, limit_snow_item;
 
 static int loop_cnt;
 
@@ -101,18 +101,18 @@ SavePrefs()
     if (NULL == f)
         return;
 
-    fprintf(f, "%d,%d,%d,%d,%d", pref_override, pref_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
+    fprintf(f, "%d,%d,%d,%d,%d", pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
     fclose(f);
 
     log_msg("Saving preferences to '%s'",  pref_path.c_str());
-    log_msg("pref_override: %d, pref_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_limit_snow: %d",
-             pref_override, pref_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
+    log_msg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_limit_snow: %d",
+             pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
 }
 
 static void
 LoadPrefs()
 {
-    pref_override = pref_rwy_ice = pref_historical = pref_autoupdate = pref_limit_snow = false;
+    pref_override = pref_no_rwy_ice = pref_historical = pref_autoupdate = pref_limit_snow = false;
 
     FILE *f  = fopen(pref_path.c_str(), "r");
     if (NULL == f)
@@ -121,11 +121,11 @@ LoadPrefs()
     log_msg("Loading preferences from '%s'",  pref_path.c_str());
 
     [[maybe_unused]]int n = fscanf(f, "%i,%i,%i,%i,%i",
-                                   &pref_override, &pref_rwy_ice, &pref_historical, &pref_autoupdate, &pref_limit_snow);
+                                   &pref_override, &pref_no_rwy_ice, &pref_historical, &pref_autoupdate, &pref_limit_snow);
     fclose(f);
 
-    log_msg("pref_override: %d, pref_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_limit_snow: %d",
-             pref_override, pref_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
+    log_msg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_limit_snow: %d",
+             pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
 }
 
 static void
@@ -136,8 +136,8 @@ MenuCB([[maybe_unused]] void *menu_ref, void *item_ref)
     int item;
     if (pref == &pref_override) {
         item = override_item;
-    } else if (pref == &pref_rwy_ice) {
-        item = rwy_ice_item;
+    } else if (pref == &pref_no_rwy_ice) {
+        item = no_rwy_ice_item;
     } else if (pref == &pref_historical) {
         item = historical_item;
         loop_cnt = 0;   // reload snow
@@ -244,7 +244,7 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
     if ((snow_depth < 0.001f) && !pref_override)
         return -1;
 
-    if (!pref_rwy_ice) {
+    if (pref_no_rwy_ice) {
         ice_now = 2;
         rwy_snow = 0;
         XPLMSetDataf(rwy_cond_dr, 0.0f);
@@ -316,13 +316,13 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
                               MenuCB, NULL);
 
 	override_item = XPLMAppendMenuItem(xas_menu, "Toggle Override", &pref_override, 0);
-	rwy_ice_item = XPLMAppendMenuItem(xas_menu, "Lock Elsa up (ice)", &pref_rwy_ice, 0);
+	no_rwy_ice_item = XPLMAppendMenuItem(xas_menu, "Lock Elsa up (ice)", &pref_no_rwy_ice, 0);
 	historical_item = XPLMAppendMenuItem(xas_menu, "Enable Historical Snow", &pref_historical, 0);
 	autoupdate_item = XPLMAppendMenuItem(xas_menu, "Enable Snow Depth Auto Update", &pref_autoupdate, 0);
     limit_snow_item = XPLMAppendMenuItem(xas_menu, "Limit snow for legacy airports", &pref_limit_snow, 0);
 
     XPLMCheckMenuItem(xas_menu, override_item, pref_override ? xplm_Menu_Checked : xplm_Menu_Unchecked);
-    XPLMCheckMenuItem(xas_menu, rwy_ice_item, pref_rwy_ice ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+    XPLMCheckMenuItem(xas_menu, no_rwy_ice_item, pref_no_rwy_ice ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     XPLMCheckMenuItem(xas_menu, historical_item, pref_historical ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     XPLMCheckMenuItem(xas_menu, autoupdate_item, pref_autoupdate ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     XPLMCheckMenuItem(xas_menu, limit_snow_item, pref_limit_snow ? xplm_Menu_Checked : xplm_Menu_Unchecked);
