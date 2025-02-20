@@ -29,20 +29,18 @@ static float constexpr k200ft = 200 * kF2M;     // m 200ft
 
 static float constexpr kMecSlope = 0.087f;      // 5° slope towards MEC
 
-float
-LegacyAirportSnowDepth(float snow_depth)		// -> adjusted snow depth
+std::tuple<float, bool>
+LegacyAirportSnowDepth(float snow_depth)		// -> adjusted snow depth, in range of a legacy airport
 {
-    if (snow_depth < kArptSnow)
-        return snow_depth;
-
-    [[maybe_unused]] float snow_depth_in = snow_depth;
-
     // look whether we are approaching a legacy airport
     LLPos pos = { XPLMGetDataf(plane_lon_dr), XPLMGetDataf(plane_lat_dr) };
 
     for (auto & arpt : airports) {
         float dist = len(pos - arpt->mec_center);
         if (dist < kArptLimit) {
+            if (snow_depth < kArptSnow)
+                return std::make_tuple(snow_depth, true);
+
             if (arpt->elevation == Airport::kNoElevation) {
                 double x, y, z;
                 const LLPos& pos = arpt->runways[0].end1;
@@ -66,20 +64,20 @@ LegacyAirportSnowDepth(float snow_depth)		// -> adjusted snow depth
             // now interpolate down to kArptSnow at the MEC
             float a = (ref_dist - arpt->mec_radius) / (kArptLimit - arpt->mec_radius);
             a = std::max(0.0f, std::min(a, 1.0f));
-            snow_depth = kArptSnow + a * (std::min(snow_depth, 0.25f) - kArptSnow);
+            float snow_depth_n = kArptSnow + a * (std::min(snow_depth, 0.25f) - kArptSnow);
 
             // keep snow at limit if above 200ft AGL, below height blending comes in
             float height = XPLMGetDataf(plane_y_agl_dr);
             if (height > k200ft)
-                snow_depth = std::max(snow_depth, kSnowLim200ft);
+                snow_depth_n = std::max(snow_depth_n, kSnowLim200ft);
             else
-                snow_depth = kArptSnow + height/k200ft * (kSnowLim200ft - kArptSnow);
+                snow_depth_n = kArptSnow + height/k200ft * (kSnowLim200ft - kArptSnow);
 
             //log_msg("haa: %.0f, ref_haa: %0.f, dist to '%s', %.0f m, snow_depth in: %0.2f, out: %0.2f",
-            //        haa, ref_haa, arpt->name.c_str(), dist, snow_depth_in, snow_depth);
-            break;
+            //        haa, ref_haa, arpt->name.c_str(), dist, snow_depth, snow_depth_n);
+            return std::make_tuple(snow_depth_n, true);
         }
     }
 
-	return snow_depth;
+	return std::make_tuple(snow_depth, false);
 }

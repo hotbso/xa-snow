@@ -1,5 +1,5 @@
 //
-//    A contribution to https://github.com/xairline/xa-snow by zodiac1214
+//    X Airline Snow: show accumulated snow in X-Plane's world
 //
 //    Copyright (C) 2025  Holger Teutsch
 //
@@ -26,6 +26,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <tuple>
 
 #include "xa-snow.h"
 
@@ -130,6 +131,8 @@ struct SceneryPacks {
 };
 
 extern bool CollectAirports(const std::string& xp_dir);
-extern float LegacyAirportSnowDepth(float snow_depth);		// -> adjusted snow depth
+
+// -> adjusted snow depth, in range of a legacy airport
+extern std::tuple<float, bool> LegacyAirportSnowDepth(float snow_depth);
 
 #endif

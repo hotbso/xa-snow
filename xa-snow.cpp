@@ -112,8 +112,6 @@ SavePrefs()
 static void
 LoadPrefs()
 {
-    pref_override = pref_no_rwy_ice = pref_historical = pref_autoupdate = pref_limit_snow = false;
-
     FILE *f  = fopen(pref_path.c_str(), "r");
     if (NULL == f)
         return;
@@ -185,6 +183,7 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
              [[maybe_unused]] void *inRefcon)
 {
     static float snow_depth, snow_now, rwy_snow, ice_now;
+    static bool legacy_airport_range;
 
     if (loop_cnt == 0) {
         loop_cnt++;
@@ -224,9 +223,11 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
     // throttle computations
     if (loop_cnt % 8 == 0) {
         float snow_depth_n = snod_map->get(XPLMGetDataf(plane_lon_dr), XPLMGetDataf(plane_lat_dr));
-        if (pref_limit_snow) {
-            snow_depth_n = LegacyAirportSnowDepth(snow_depth_n);
-        }
+
+        if (pref_limit_snow)
+            std::tie<float, bool>(snow_depth_n, legacy_airport_range) = LegacyAirportSnowDepth(snow_depth_n);
+        else
+            legacy_airport_range = false;
 
         const float alpha = 0.7f;
         snow_depth = alpha * snow_depth_n + (1 - alpha) * snow_depth;
@@ -244,16 +245,18 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
     if ((snow_depth < 0.001f) && !pref_override)
         return -1;
 
+    float rwy_cond = XPLMGetDataf(rwy_cond_dr);
+
     if (pref_no_rwy_ice) {
         ice_now = 2;
-        rwy_snow = 0;
-        XPLMSetDataf(rwy_cond_dr, 0.0f);
+        // on legacy textures setting this to 0 has the opposite effect
+        rwy_snow = legacy_airport_range ? 0.25f : 0;
+        rwy_cond = 0.0f;
     }
 
     XPLMSetDataf(snow_dr, snow_now);
     XPLMSetDataf(rwy_snow_dr, rwy_snow);
     XPLMSetDataf(ice_dr, ice_now);
-    float rwy_cond = XPLMGetDataf(rwy_cond_dr);
     if (rwy_cond >= 4.0f) {
         rwy_cond = rwy_cond / 3.0f;
         XPLMSetDataf(rwy_cond_dr, rwy_cond);
@@ -284,6 +287,9 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
     output_dir = xp_dir + "Output/snow";
 	pref_path = xp_dir + "Output/preferences/xa-snow.prf";
     std::filesystem::create_directory(output_dir);
+
+    pref_override = pref_historical = pref_autoupdate = false;
+    pref_no_rwy_ice = pref_limit_snow = true;
 
     LoadPrefs();
 
