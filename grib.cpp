@@ -248,11 +248,9 @@ DownloadAndProcessGribFile(bool sys_time, int month, int day, int hour)
         log_msg("Using existing snod_csv file '%s'", snod_csv_name);
 
     // create new snow map
-    std::unique_ptr<DepthMap> grib_snod_map = std::make_unique<DepthMap>();
-    grib_snod_map->load_csv(snod_csv_name);
-    new_snod_map = grib_snod_map->extend_coastal_snow();
-
-    CreateSnowMapPng(*grib_snod_map, *new_snod_map, "snow_depth.png");
+    new_snod_map = std::make_unique<DepthMap>();
+    new_snod_map->load_csv(snod_csv_name);
+    CreateSnowMapPng(*new_snod_map, "snow_depth.png");
     return true;
 }
 
@@ -301,7 +299,7 @@ CheckAsyncDownload()
 
         download_active = false;
         bool res = download_future.get();
-        log_msg("Download status: %d", res);
+        log_msg("CheckAsyncDownload(): Download status: %d", res);
         snod_map = std::move(new_snod_map);     // activate the new map
     }
 

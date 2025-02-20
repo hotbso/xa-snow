@@ -1,7 +1,7 @@
 //
-//    A contribution to https://github.com/xairline/xa-snow by zodiac1214
+//    X Airline Snow: show accumulated snow in X-Plane's world
 //
-//    Copyright (C) 2025  zodiac1214
+//    Copyright (C) 2025  Zodiac1214
 //    Copyright (C) 2025  Holger Teutsch
 //
 //    This library is free software; you can redistribute it and/or
@@ -45,71 +45,58 @@ int xlate(int i) {
 }
 
 int
-CreateSnowMapPng(const DepthMap& grib_snod_map, const DepthMap& snod_map, const std::string& png_path)
+CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path)
 {
     auto img = std::make_unique<uint32_t[]>(kWidth * kHeight);
 
     // land
-    if (true) {
-        uint32_t pixel = RGBA(80, 80, 80);
-        for (int i = 0; i < kWidth; i++) {
-            for (int j = 0; j < kHeight; j++) {
-                if (coast_map.is_land(i, j)) {
-                   img[(kHeight - j - 1) * kWidth + xlate(i)] = pixel;
-                }
+    uint32_t pixel = RGBA(80, 80, 80);
+    for (int i = 0; i < kWidth; i++) {
+        for (int j = 0; j < kHeight; j++) {
+            if (coast_map.is_land(i, j)) {
+               img[(kHeight - j - 1) * kWidth + xlate(i)] = pixel;
             }
         }
     }
 
     // snow
-    if (true) {
-        for (int i = 0; i < kWidth; i++) {
-            for (int j = 0; j < kHeight; j++) {
-                float sd = grib_snod_map.get_idx(i, j);
-
-                if (sd > 0.01f) {
-                    const float sd_max = 0.10f;
-                    if (sd > sd_max) {
-                        sd = sd_max;
-                    }
-                    sd = sd / sd_max;
-                    const int ofs = 70;
-                    uint8_t bg = ofs + sd * (255 - ofs);
-                    uint32_t pixel = RGBA(0, bg, bg);
-                    img[(kHeight - j - 1) * kWidth + xlate(i)] = pixel;
-                }
-            }
-        }
-    }
-
-    // coastal snow
     for (int i = 0; i < kWidth; i++) {
         for (int j = 0; j < kHeight; j++) {
-            float sd = grib_snod_map.get_idx(i, j);
-            float sdc = snod_map.get_idx(i, j);
-            if (sd != sdc) {
-                const int ofs = 100;
-                uint8_t rg = ofs + sdc * (255 - ofs);
-                uint32_t pixel = RGBA(rg, rg, 0);
-                img[(kHeight - j - 1) * kWidth + xlate(i)] = pixel;
+            float sd = snod_map.get(i, j);
+            if (sd <= 0.01f)
+                continue;
+
+            static constexpr float sd_max = 0.25f;
+            if (sd > sd_max)
+                sd = sd_max;
+
+            sd = sd / sd_max;   // scale to [0,1]
+
+            uint32_t pixel;
+            static constexpr int ofs = 70;
+            uint8_t a = ofs + sd * (255 - ofs);
+            if (snod_map.is_extended_snow(i, j)) {
+                pixel = RGBA(a, 0, a);
+            } else {
+                pixel = RGBA(0, a, a);
             }
+            img[(kHeight - j - 1) * kWidth + xlate(i)] = pixel;
         }
     }
 
 #if 0
+    // incomplete fragment
     // coast line
-    if (false) {
-        for (int i = 0; i < kWidth; i++) {
-            for (int j = 0; j < kHeight; j++) {
-                auto [yes, _, _, dir] = coast_map.IsCoast(i, j);
-                if (yes) {
-                    float ang = static_cast<float>(dir) * 45.0f;
-                    ang = 90.0f - ang; // for visualization use true hdg
-                    float r, g, b;
-                    // hslToRGBf32 implementation
-                    png::rgb_pixel cCoast(static_cast<uint8_t>(r * 255), static_cast<uint8_t>(g * 255), static_cast<uint8_t>(b * 255));
-                    img[(kHeight - j - 1) * kWidth + i] = cCoast;
-                }
+    for (int i = 0; i < kWidth; i++) {
+        for (int j = 0; j < kHeight; j++) {
+            auto [yes, _, _, dir] = coast_map.IsCoast(i, j);
+            if (yes) {
+                float ang = static_cast<float>(dir) * 45.0f;
+                ang = 90.0f - ang; // for visualization use true hdg
+                float r, g, b;
+                // hslToRGBf32 implementation
+                png::rgb_pixel cCoast(static_cast<uint8_t>(r * 255), static_cast<uint8_t>(g * 255), static_cast<uint8_t>(b * 255));
+                img[(kHeight - j - 1) * kWidth + i] = cCoast;
             }
         }
     }

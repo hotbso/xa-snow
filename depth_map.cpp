@@ -21,6 +21,7 @@
 //
 
 #include <cstdio>
+#include <cassert>
 #include <fstream>
 #include <string>
 #include <cmath>
@@ -33,7 +34,7 @@
 int DepthMap::seqno_base_;
 
 float
-DepthMap::get_idx(int i_lon, int i_lat) const
+DepthMap::get(int i_lon, int i_lat) const
 {
     // for lon we wrap around
     if (i_lon >= kNlon) {
@@ -75,11 +76,11 @@ DepthMap::get(float lon, float lat) const
     float s = lon - static_cast<float>(i_lon);
     float t = lat - static_cast<float>(i_lat);
 
-    //m.Logger.Infof("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
-    float v00 = get_idx(i_lon, i_lat);
-    float v10 = get_idx(i_lon + 1, i_lat);
-    float v01 = get_idx(i_lon, i_lat + 1);
-    float v11 = get_idx(i_lon + 1, i_lat + 1);
+    //log_msg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
+    float v00 = get(i_lon, i_lat);
+    float v10 = get(i_lon + 1, i_lat);
+    float v01 = get(i_lon, i_lat + 1);
+    float v11 = get(i_lon + 1, i_lat + 1);
 
 	// Lagrange polynoms: pij = is 1 on corner ij and 0 elsewhere
     float p00 = (1 - s) * (1 - t);
@@ -88,8 +89,16 @@ DepthMap::get(float lon, float lat) const
     float p11 = s * t;
 
     float v = v00 * p00 + v10 * p10 + v01 * p01 + v11 * p11;
-	//m.Logger.Infof("vij: %f, %f, %f, %f; v: %f", v00, v10, v01, v11, v)
+	//log_msg("vij: %f, %f, %f, %f; v: %f", v00, v10, v01, v11, v)
     return v;
+}
+
+bool
+DepthMap::is_extended_snow(int i_lon, int i_lat) const
+{
+    assert(0 <= i_lon && i_lon < kNlon);
+    assert(0 <= i_lat && i_lat < kNlat);
+    return extended_snow_[i_lon][i_lat];
 }
 
 void
@@ -116,7 +125,7 @@ DepthMap::load_csv(const char *csv_name)
         }
 
         if (value < 0.001f)
-            value = 0.0f;
+            continue;
 
         // Convert longitude and latitude to array indices
         // This example assumes the CSV contains all longitudes and latitudes
@@ -131,30 +140,21 @@ DepthMap::load_csv(const char *csv_name)
         counter++;
     }
 
-    log_msg("depth map size: %d",  counter);
-    log_msg("Loading CSV file '%s': Done", csv_name);
+    log_msg("Loaded %d lines from CSV file '%s'", counter, csv_name);
+    extend_coastal_snow();
 }
 
-std::unique_ptr<DepthMap>
-DepthMap::extend_coastal_snow() const
+void
+DepthMap::extend_coastal_snow()
 {
     const float min_sd = 0.02f; // only go higher than this snow depth
     int n_extend = 0;
 
-    std::unique_ptr<DepthMap> new_dm = std::make_unique<DepthMap>();
-
-    for (int i = 0; i < DepthMap::kNlon; i++) {
-        for (int j = 0; j < DepthMap::kNlat; j++) {
-            float sd = get_idx(i, j);
-            float sdn = new_dm->val_[i][j]; // may already be set by inland extension earlier
-            if (sd > sdn) { // always maximize
-                new_dm->val_[i][j] = sd;
-            }
-
+    for (int i = 0; i < kNlon; i++) {
+        for (int j = 0; j < kNlat; j++) {
+            float sd = get(i, j);
             const int max_step = 3; // to look for inland snow ~ 5 to 10 km / step
-            bool is_coast;
-            int dir_x, dir_y, dir_angle;
-            std::tie(is_coast, dir_x, dir_y, dir_angle) = coast_map.is_coast(i, j);
+            auto [is_coast, dir_x, dir_y, dir_angle] = coast_map.is_coast(i, j);
             if (is_coast && sd <= min_sd) {
                 // look for inland snow
                 int inland_dist = 0;
@@ -167,7 +167,7 @@ DepthMap::extend_coastal_snow() const
                         continue;
                     }
 
-                    float tmp = get_idx(ii, jj);
+                    float tmp = get(ii, jj);
                     if (tmp > sd && tmp > min_sd) { // found snow
                         inland_dist = k;
                         inland_sd = tmp;
@@ -177,8 +177,8 @@ DepthMap::extend_coastal_snow() const
 
                 const float decay = 0.8f; // snow depth decay per step
                 if (inland_dist > 0) {
-					//g.Logger.Infof("Inland snow detected for (%d, %d) at dist %d, sd: %0.3f %0.3f",
-					//				 i, j, inland_dist, sd, inland_sd)
+					//log_msg("Inland snow detected for (%d, %d) at dist %d, sd: %0.3f %0.3f",
+					//		  i, j, inland_dist, sd, inland_sd)
 
 					// use exponential decay law from inland point to coast line point
                     for (int k = inland_dist - 1; k >= 0; k--) {
@@ -188,22 +188,20 @@ DepthMap::extend_coastal_snow() const
                         }
                         int x = i + k * dir_x;
                         int y = j + k * dir_y;
-                        if (x >= DepthMap::kNlon) {
-                            x -= DepthMap::kNlon;
-                        }
-                        if (x < 0) {
-                            x += DepthMap::kNlon;
-                        }
+                        if (x >= kNlon)
+                            x -= kNlon;
+                        else if (x < 0)
+                            x += kNlon;
 
                         // the poles are tricky so we just clamp
                         // anyway it does not make a difference
-                        if (y >= DepthMap::kNlat) {
-                            y = DepthMap::kNlat - 1;
-                        }
-                        if (y < 0) {
+                        if (y >= kNlat)
+                            y = kNlat - 1;
+                        else if (y < 0)
                             y = 0;
-                        }
-                        new_dm->val_[x][y] = inland_sd;
+
+                        val_[x][y] = std::max(val_[x][y], inland_sd);
+                        extended_snow_[x][y] = true;
                         n_extend++;
                     }
                 }
@@ -212,5 +210,4 @@ DepthMap::extend_coastal_snow() const
     }
 
     log_msg("Extended coastal snow on %d grid points", n_extend);
-    return new_dm;
 }

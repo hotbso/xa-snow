@@ -61,37 +61,37 @@ static int loop_cnt;
 std::tuple<float, float, float>
 SnowDepthToXplaneSnowNow(float depth) // snowNow, snowAreaWidth, iceNow
 {
-    static const std::array<float, 7> snowDepthTab     = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
-    static const std::array<float, 7> snowNowTab       = {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
-    static const std::array<float, 7> snowAreaWidthTab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
-    static const std::array<float, 7> iceNowTab        = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
+    static const std::array<float, 7> snow_depth_tab      = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
+    static const std::array<float, 7> snow_now_tab        = {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
+    static const std::array<float, 7> snow_area_width_tab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
+    static const std::array<float, 7> ice_now_tab         = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
 
-    if (depth >= snowDepthTab.back()) {
-        return std::make_tuple(snowNowTab.back(), snowAreaWidthTab.back(), iceNowTab.back());
+    if (depth >= snow_depth_tab.back()) {
+        return std::make_tuple(snow_now_tab.back(), snow_area_width_tab.back(), ice_now_tab.back());
     }
 
-    if (depth <= snowDepthTab.front()) {
-        return std::make_tuple(1.2f, snowAreaWidthTab.front(), iceNowTab.front());
+    if (depth <= snow_depth_tab.front()) {
+        return std::make_tuple(1.2f, snow_area_width_tab.front(), ice_now_tab.front());
     }
 
     // piecewise linear interpolation
-    float snowNowValue = 1.2f;
-    float iceNowValue = iceNowTab.front();
-    float snowAreaWidthValue = snowAreaWidthTab.front();
+    float snow_now_value = 1.2f;
+    float ice_now_value = ice_now_tab.front();
+    float snow_area_width_value = snow_area_width_tab.front();
 
-    for (size_t i = 0; i < snowDepthTab.size() - 1; ++i) {
-        float sd0 = snowDepthTab[i];
-        float sd1 = snowDepthTab[i + 1];
+    for (size_t i = 0; i < snow_depth_tab.size() - 1; ++i) {
+        float sd0 = snow_depth_tab[i];
+        float sd1 = snow_depth_tab[i + 1];
         if (sd0 <= depth && depth < sd1) {
             float x = (depth - sd0) / (sd1 - sd0);
-            snowNowValue = snowNowTab[i] + x * (snowNowTab[i + 1] - snowNowTab[i]);
-            snowAreaWidthValue = snowAreaWidthTab[i] + x * (snowAreaWidthTab[i + 1] - snowAreaWidthTab[i]);
-            iceNowValue = iceNowTab[i] + x * (iceNowTab[i + 1] - iceNowTab[i]);
+            snow_now_value = snow_now_tab[i] + x * (snow_now_tab[i + 1] - snow_now_tab[i]);
+            snow_area_width_value = snow_area_width_tab[i] + x * (snow_area_width_tab[i + 1] - snow_area_width_tab[i]);
+            ice_now_value = ice_now_tab[i] + x * (ice_now_tab[i + 1] - ice_now_tab[i]);
             break;
         }
     }
 
-    return std::make_tuple(snowNowValue, snowAreaWidthValue, iceNowValue);
+    return std::make_tuple(snow_now_value, snow_area_width_value, ice_now_value);
 }
 
 static void
@@ -206,7 +206,7 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
         // set to known "no snow" values
         snow_depth = 0.0f;
         std::tie(snow_now, rwy_snow, ice_now) = SnowDepthToXplaneSnowNow(snow_depth);
-        return 10.0f;
+        return 3.0f;
     }
 
     CheckAsyncDownload();

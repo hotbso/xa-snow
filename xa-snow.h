@@ -80,7 +80,6 @@ extern std::unique_ptr<DepthMap> snod_map, new_snod_map;
 extern std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth); // snowNow, snowAreaWidth, iceNow
 
 extern CoastMap coast_map;
-extern int CreateSnowMapPng(const DepthMap& grib_snod_map, const DepthMap& snod_map,
-                            const std::string& png_path);
+extern int CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path);
 
 #endif

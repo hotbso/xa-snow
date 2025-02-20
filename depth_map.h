@@ -1,6 +1,7 @@
 //
-//    A contribution to https://github.com/xairline/xa-snow by zodiac1214
+//    X Airline Snow: show accumulated snow in X-Plane's world
 //
+//    Copyright (C) 2025  Zodiac1214
 //    Copyright (C) 2025  Holger Teutsch
 //
 //    This library is free software; you can redistribute it and/or
@@ -31,13 +32,16 @@ class DepthMap {
     int seqno_;
 
     float val_[kNlon][kNlat] = {};
+    bool extended_snow_[kNlon][kNlat] = {};
 
-public:
+    void extend_coastal_snow();
+
+ public:
     DepthMap() : seqno_(++seqno_base_) { log_msg("DepthMap created: %d", seqno_); }
     ~DepthMap() { log_msg("DepthMap destroyed: %d", seqno_); }
     float get(float lon, float lat) const;
-    float get_idx(int i_lon, int i_lat) const;
+    float get(int i_lon, int i_lat) const;
+    bool is_extended_snow(int i_lon, int i_lat) const;
     void load_csv(const char *csv_name);
-    std::unique_ptr<DepthMap> extend_coastal_snow() const;
 };
 #endif
