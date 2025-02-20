@@ -1,4 +1,4 @@
-# xa-snow
+# xa-snow plugin for X-Plane
 
 Accumulated snow for X-Plane 12 created by https://github.com/zodiac1214 .
 
