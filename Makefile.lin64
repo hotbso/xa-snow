@@ -30,7 +30,7 @@ COMPILE.cpp = $(CXX) $(CXXFLAGS) $(DEPFLAGS) -c
 COMPILE.c = $(CC) $(CFLAGS) $(DEPFLAGS) -c
 
 LDFLAGS=-shared -rdynamic -nodefaultlibs -undefined_warning
-LIBS=$(MYLIB)
+LIBS=$(MYLIB) -lcurl -lz
 
 $(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d version.mak | $(DEPDIR)
 	$(COMPILE.cpp) -o $@  $<
@@ -49,7 +49,7 @@ $(TARGET): $(MYLIB)
 	$(LD) -o $(TARGET) $(OBJDIR)/xa-snow.o $(LIBS) $(LDFLAGS)
 
 grib_test.lin: grib_test.cpp log_msg.cpp $(MYLIB)
-	$(CXX) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp  $(MYLIB) -lcurl -lz
+	$(CXX) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp  $(LIBS)
 
 $(DEPDIR): ; @mkdir -p $@
 
