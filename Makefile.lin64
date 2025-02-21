@@ -46,7 +46,7 @@ $(MYLIB): $(OBJECTS)
 XPL_DIR=/e/X-Plane-12-test
 
 $(TARGET): $(MYLIB)
-	$(LD) -o $(TARGET) $(OBJDIR)/xa-snow.o $(LIBS) $(LDFLAGS)
+	$(LD) -o $(TARGET) $(OBJDIR)/xa-snow.o $(LIBS) $(LDFLAGS) -lcurl -lz
 
 grib_test.lin: grib_test.cpp log_msg.cpp $(MYLIB)
 	$(CXX) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp  $(LIBS)

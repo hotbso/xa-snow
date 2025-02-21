@@ -30,7 +30,7 @@ COMPILE.cpp = $(CXX) $(CXXFLAGS) $(DEPFLAGS) -c
 COMPILE.c = $(CC) $(CFLAGS) $(DEPFLAGS) -c
 
 LDFLAGS=-shared -static-libgcc -static -lpthread
-LIBS=$(MYLIB) -L$(SDK)/Libraries/Win -lXPLM_64 -lXPWidgets_64 -lwinhttp -lz
+LIBS=$(MYLIB) -L$(SDK)/Libraries/Win -lXPLM_64 -lXPWidgets_64 -lwinhttp -lopengl32 -lz
 
 $(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d version.mak | $(DEPDIR)
 	$(COMPILE.cpp) -o $@  $<
