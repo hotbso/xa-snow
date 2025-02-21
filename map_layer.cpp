@@ -53,6 +53,7 @@ class MapTexture
   public:
     void set_bounds(const float *ltrb, XPLMMapProjectionID projection);
     bool check_image();
+    bool check_image_high_res();
 
     void draw(const float *ltrb);
 };
@@ -80,6 +81,75 @@ MapTexture::set_bounds(const float *ltrb, XPLMMapProjectionID projection)
             left_lon_, right_lon_, bottom_lat_, top_lat_);
     log_msg("map_bounds: x: (%0.2f, %0.2f), y: (%0.2f, %0.2f)",
             left_x_, right_x_, bottom_y_, top_y_);
+}
+
+bool
+MapTexture::check_image_high_res()
+{
+    if (snod_map == nullptr)
+        return false;
+
+    if (valid_)
+        return true;
+
+    static constexpr float dll = 0.005f;
+
+    if (left_lon_ < right_lon_) {
+        width_ = (right_lon_ - left_lon_) / dll;
+    } else {
+        // dateline
+        log_msg("crossing dateline NYI");
+        return false;
+    }
+
+    height_ = (top_lat_ - bottom_lat_) / dll;
+
+    data_ = std::make_unique<uint32_t[]>(width_ * height_);
+
+    int pix_idx = 0;
+    float lat = bottom_lat_;
+    for (int j = 0; j < height_; j++) {
+        float lon = left_lon_;
+        for (int i = 0; i < width_; i++) {
+            float sd = snod_map->get(lon, lat);
+            //log_msg("(%d, %d), sd: %0.3f", i, j, sd);
+
+            if (sd > 0.015f) {
+                static constexpr float sd_max = 0.25f;
+                if (sd > sd_max)
+                    sd = sd_max;
+
+                sd = sd / sd_max;   // scale to [0,1]
+
+                static constexpr int ofs = 50;
+                uint8_t a = ofs + sd * (255 - ofs);
+                uint32_t  pixel = RGBA(0, a, a);
+                //log_msg("pix_idx: %d, pixel: %08x", pix_idx, pixel);
+                data_[pix_idx] = pixel;
+            }
+            lon += dll;
+            pix_idx++;
+        }
+        lat += dll;
+    }
+
+    SaveImagePng(data_.get(), width_, height_, "map.png");
+
+    XPLMBindTexture2d(tex_id, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width_, height_, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, data_.get());
+
+    GLenum err;
+    while((err = glGetError()) != GL_NO_ERROR) {
+        log_msg("Gl error %d", err);
+    }
+
+    valid_ = true;
+    log_msg("texture created, width: %d, height: %d", width_, height_);
+    return true;
 }
 
 bool
@@ -167,7 +237,7 @@ MapTexture::check_image()
 void
 MapTexture::draw(const float *ltrb)
 {
-    if (! check_image())
+    if (! check_image_high_res())
         return;
 
     float left_s = std::clamp((ltrb[0] - left_x_) / (right_x_ - left_x_), 0.0f, 1.0f);
