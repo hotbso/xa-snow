@@ -30,6 +30,65 @@
 #include <spng.h> // For image processing, include after xa-snow.h
 
 
+// -> 0 = success
+int
+SaveImagePng(uint32_t *data, int width, int height, const std::string& png_path)
+{
+    // create .png
+    struct spng_ihdr ihdr = {};
+
+    // Creating an encoder context requires a flag
+    spng_ctx *ctx = spng_ctx_new(SPNG_CTX_ENCODER);
+
+    // Encode to internal buffer managed by the library
+    spng_set_option(ctx, SPNG_ENCODE_TO_BUFFER, 1);
+
+    // Set image properties, this determines the destination image format
+    ihdr.width = width;
+    ihdr.height = height;
+    ihdr.color_type = SPNG_COLOR_TYPE_TRUECOLOR_ALPHA;
+    ihdr.bit_depth = 8;
+
+    spng_set_ihdr(ctx, &ihdr);
+
+    // SPNG_ENCODE_FINALIZE will finalize the PNG with the end-of-file marker
+    int ret = spng_encode_image(ctx, data, width * height * sizeof(uint32_t),
+                                SPNG_FMT_PNG, SPNG_ENCODE_FINALIZE);
+    if (ret) {
+        log_msg("spng_encode_image() error: %s", spng_strerror(ret));
+        spng_ctx_free(ctx);
+        return ret;
+    }
+
+    size_t png_size;
+    void *png_buf = spng_get_png_buffer(ctx, &png_size, &ret);
+    // User owns the buffer after a successful call
+
+    if (png_buf == NULL) {
+        log_msg("spng_get_png_buffer() error: %s", spng_strerror(ret));
+        return ret;
+    }
+
+    log_msg("PNG size: %d", (int)png_size);
+
+    std::ofstream f(png_path, std::ios::binary);
+    if (f.fail()) {
+        log_msg("Can't open '%s'", png_path.c_str());
+        return 1;
+    }
+
+    f.write((const char*)png_buf, png_size);
+    f.close();
+    if (f.fail())
+        log_msg("write to png failed");
+    else
+        log_msg("PNG '%s' created", png_path.c_str());
+
+    free(png_buf);
+    spng_ctx_free(ctx);
+    return ret;
+}
+
 #define RGBA(R,G,B) \
     ((255 << 24) | (((B)&0xff) << 16) | (((G)&0xff) << 8) | ((R)&0xff))
 
@@ -102,57 +161,5 @@ CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path)
     }
 #endif
 
-    // create .png
-    struct spng_ihdr ihdr = {};
-
-    // Creating an encoder context requires a flag
-    spng_ctx *ctx = spng_ctx_new(SPNG_CTX_ENCODER);
-
-    // Encode to internal buffer managed by the library
-    spng_set_option(ctx, SPNG_ENCODE_TO_BUFFER, 1);
-
-    // Set image properties, this determines the destination image format
-    ihdr.width = kWidth;
-    ihdr.height = kHeight;
-    ihdr.color_type = SPNG_COLOR_TYPE_TRUECOLOR_ALPHA;
-    ihdr.bit_depth = 8;
-
-    spng_set_ihdr(ctx, &ihdr);
-
-    // SPNG_ENCODE_FINALIZE will finalize the PNG with the end-of-file marker
-    int ret = spng_encode_image(ctx, img.get(),kWidth * kHeight * sizeof(uint32_t),
-                            SPNG_FMT_PNG, SPNG_ENCODE_FINALIZE);
-    if (ret) {
-        log_msg("spng_encode_image() error: %s", spng_strerror(ret));
-        spng_ctx_free(ctx);
-        return ret;
-    }
-
-    size_t png_size;
-    void *png_buf = spng_get_png_buffer(ctx, &png_size, &ret);
-    // User owns the buffer after a successful call
-
-    if (png_buf == NULL) {
-        log_msg("spng_get_png_buffer() error: %s", spng_strerror(ret));
-        return ret;
-    }
-
-    log_msg("PNG size: %d", (int)png_size);
-
-    std::fstream f(png_path, std::ios::binary | std::ios_base::out | std::ios_base::trunc);
-    if (f.fail()) {
-        log_msg("Can't open '%s'", png_path.c_str());
-        return 1;
-    }
-
-    f.write((const char*)png_buf, png_size);
-    f.close();
-    if (f.fail())
-        log_msg("write to png failed");
-    else
-        log_msg("PNG '%s' created", png_path.c_str());
-
-    free(png_buf);
-    spng_ctx_free(ctx);
-    return ret;
+    return SaveImagePng(img.get(), kWidth, kHeight, png_path);
 }

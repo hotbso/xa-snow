@@ -23,6 +23,7 @@
 #ifndef _XA_SNOW_H_
 #define _XA_SNOW_H_
 
+#include <cstdint>
 #include <string>
 #include <tuple>
 #include <numbers>
@@ -76,11 +77,13 @@ struct CoastMap {
 };
 
 class DepthMap;
-extern std::unique_ptr<DepthMap> snod_map, new_snod_map;
+extern CoastMap coast_map;
 
+extern std::unique_ptr<DepthMap> snod_map, new_snod_map;
 extern std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth); // snowNow, snowAreaWidth, iceNow
 
-extern CoastMap coast_map;
+// -> 0 = success
 extern int CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path);
+extern int SaveImagePng(uint32_t *data, int width, int height, const std::string& png_path);
 
 #endif
