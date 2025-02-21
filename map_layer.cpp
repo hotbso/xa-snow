@@ -29,22 +29,18 @@
 #include "xa-snow.h"
 #include "depth_map.h"
 
-#include <spng.h> // For image processing, include after xa-snow.h
-#include <fstream>
-
 #include "XPLMMap.h"
 #include "XPLMGraphics.h"
 
 #include <GL/gl.h>
 
 #define RGBA(R,G,B) \
-    ((180 << 24) | (((B)&0xff) << 16) | (((G)&0xff) << 8) | ((R)&0xff))
+    ((150 << 24) | (((B)&0xff) << 16) | (((G)&0xff) << 8) | ((R)&0xff))
 
 static XPLMMapLayerID map_layer;
 static int tex_id;
-static int log_cnt;
 
-class Image
+class MapTexture
 {
     bool valid_{false};
 
@@ -58,13 +54,11 @@ class Image
     void set_bounds(const float *ltrb, XPLMMapProjectionID projection);
     bool check_image();
 
-    // -> left_s, right_s, bottom_t, top_t
-    std::tuple<float, float, float, float>get_s_t(const float *ltrb) const;
+    void draw(const float *ltrb);
 };
 
-
 void
-Image::set_bounds(const float *ltrb, XPLMMapProjectionID projection)
+MapTexture::set_bounds(const float *ltrb, XPLMMapProjectionID projection)
 {
     valid_ = false;
 
@@ -89,7 +83,7 @@ Image::set_bounds(const float *ltrb, XPLMMapProjectionID projection)
 }
 
 bool
-Image::check_image()
+MapTexture::check_image()
 {
     if (snod_map == nullptr)
         return false;
@@ -119,96 +113,40 @@ Image::check_image()
     int pix_idx = 0;
     for (int j = bottom_idx; j < top_idx; j++) {
         for (int i = left_idx; i < right_idx; i += w_step) {
-            assert(0 <= pix_idx && pix_idx < width_ * height_);
-            uint32_t *pix_ptr = &data_[pix_idx++];
             uint32_t pixel;
 
             float sd = snod_map->get(i, j);
-            log_msg("(%d, %d), sd: %0.3f", i, j, sd);
+            //log_msg("(%d, %d), sd: %0.3f", i, j, sd);
             auto [is_coast, dir_x, dir_y, dir_angle] = coast_map.is_coast(i, j);
             if (is_coast)
-                *pix_ptr = RGBA(0, 255, 0);
+                data_[pix_idx] = RGBA(0, 255, 0);
 
-            if (sd <= 0.01f)
-                continue;
+            if (sd > 0.015f) {
+                static constexpr float sd_max = 0.25f;
+                if (sd > sd_max)
+                    sd = sd_max;
 
-            static constexpr float sd_max = 0.25f;
-            if (sd > sd_max)
-                sd = sd_max;
+                sd = sd / sd_max;   // scale to [0,1]
 
-            sd = sd / sd_max;   // scale to [0,1]
+                static constexpr int ofs = 50;
+                uint8_t a = ofs + sd * (255 - ofs);
+                if (snod_map->is_extended_snow(i, j))
+                    pixel = RGBA(a, 0, a);
+                else
+                    pixel = RGBA(0, a, a);
 
-            static constexpr int ofs = 70;
-            uint8_t a = ofs + sd * (255 - ofs);
-            if (snod_map->is_extended_snow(i, j)) {
-                pixel = RGBA(a, 0, a);
-            } else {
-                pixel = RGBA(0, a, a);
+                if (is_coast)
+                    pixel = RGBA(0, 255, 0);
+
+                //log_msg("pix_idx: %d, pixel: %08x", pix_idx, pixel);
+                data_[pix_idx] = pixel;
             }
-
-            if (is_coast)
-                pixel = RGBA(0, 255, 0);
-
-            log_msg("pix_idx: %d, pixel: %08x", pix_idx, pixel);
-            *pix_ptr = pixel;
+            pix_idx++;
         }
     }
-#if 1
-//---------------------
-    // create .png
-    std::string png_path = "map.png";
-    struct spng_ihdr ihdr = {};
 
-    // Creating an encoder context requires a flag
-    spng_ctx *ctx = spng_ctx_new(SPNG_CTX_ENCODER);
+    SaveImagePng(data_.get(), width_, height_, "map.png");
 
-    // Encode to internal buffer managed by the library
-    spng_set_option(ctx, SPNG_ENCODE_TO_BUFFER, 1);
-
-    // Set image properties, this determines the destination image format
-    ihdr.width = width_;
-    ihdr.height = height_;
-    ihdr.color_type = SPNG_COLOR_TYPE_TRUECOLOR_ALPHA;
-    ihdr.bit_depth = 8;
-
-    spng_set_ihdr(ctx, &ihdr);
-
-    // SPNG_ENCODE_FINALIZE will finalize the PNG with the end-of-file marker
-    int ret = spng_encode_image(ctx, data_.get(), width_ * height_ * sizeof(uint32_t),
-                            SPNG_FMT_PNG, SPNG_ENCODE_FINALIZE);
-    if (ret) {
-        log_msg("spng_encode_image() error: %s", spng_strerror(ret));
-        spng_ctx_free(ctx);
-        return ret;
-    }
-
-    size_t png_size;
-    void *png_buf = spng_get_png_buffer(ctx, &png_size, &ret);
-    // User owns the buffer after a successful call
-
-    if (png_buf == NULL) {
-        log_msg("spng_get_png_buffer() error: %s", spng_strerror(ret));
-        return ret;
-    }
-
-    log_msg("PNG size: %d", (int)png_size);
-
-    std::fstream f(png_path, std::ios::binary | std::ios_base::out | std::ios_base::trunc);
-    if (f.fail()) {
-        log_msg("Can't open '%s'", png_path.c_str());
-        return 1;
-    }
-
-    f.write((const char*)png_buf, png_size);
-    f.close();
-    if (f.fail())
-        log_msg("write to png failed");
-    else
-        log_msg("PNG '%s' created", png_path.c_str());
-
-    free(png_buf);
-//------------
-#endif
     XPLMBindTexture2d(tex_id, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -226,51 +164,17 @@ Image::check_image()
     return true;
 }
 
-std::tuple<float, float, float, float>
-Image::get_s_t(const float *ltrb) const
+void
+MapTexture::draw(const float *ltrb)
 {
+    if (! check_image())
+        return;
+
     float left_s = std::clamp((ltrb[0] - left_x_) / (right_x_ - left_x_), 0.0f, 1.0f);
     float top_t = std::clamp((ltrb[1] - bottom_y_) / (top_y_ - bottom_y_), 0.0f, 1.0f);
 
     float right_s = std::clamp((ltrb[2] - left_x_) / (right_x_ - left_x_), 0.0f, 1.0f);
     float bottom_t = std::clamp((ltrb[3] - bottom_y_) / (top_y_ - bottom_y_), 0.0f, 1.0f);
-    return std::make_tuple(left_s, right_s, bottom_t, top_t);
-}
-
-static Image image;
-
-static void
-SaveBounds([[maybe_unused]]XPLMMapLayerID layer, const float *ltrb,
-           XPLMMapProjectionID projection, [[maybe_unused]] void *inRefcon)
-{
-    image.set_bounds(ltrb, projection);
-}
-
-void
-DrawSnow([[maybe_unused]] XPLMMapLayerID layer, const float *ltrb, [[maybe_unused]] float zoomRatio,
-         [[maybe_unused]] float mapUnitsPerUserInterfaceUnit,
-         [[maybe_unused]] XPLMMapStyle mapStyle, [[maybe_unused]] XPLMMapProjectionID projection,
-         [[maybe_unused]] void *inRefcon)
-{
-    if (! image.check_image())
-        return;
-
-    float left = ltrb[0];
-    float top = ltrb[1];
-    float right = ltrb[2];
-    float bottom = ltrb[3];
-    GLenum err;
-    while((err = glGetError()) != GL_NO_ERROR) {
-        //log_msg("Gl error %d", err);
-    }
-
-    if (log_cnt++ >= 30) {
-        log_cnt = 0;
-        log_msg("draw: x: (%0.3f, %0.3f), y: (%0.3f, %0.3f)",
-                left, right, bottom, top);
-    }
-
-    auto [left_s, right_s, bottom_t, top_t] = image.get_s_t(ltrb);
 
 	XPLMSetGraphicsState(
 			0 /* no fog */,
@@ -286,21 +190,40 @@ DrawSnow([[maybe_unused]] XPLMMapLayerID layer, const float *ltrb, [[maybe_unuse
 
     glBegin(GL_QUADS);
         glTexCoord2f(left_s, bottom_t);
-        glVertex2f(left, bottom);
+        glVertex2f(ltrb[0], ltrb[3]);
 
         glTexCoord2f(left_s, top_t);
-        glVertex2f(left, top);
+        glVertex2f(ltrb[0], ltrb[1]);
 
         glTexCoord2f(right_s, top_t);
-        glVertex2f(right, top);
+        glVertex2f(ltrb[2], ltrb[1]);
 
         glTexCoord2f(right_s, bottom_t);
-        glVertex2f(right, bottom);
+        glVertex2f(ltrb[2], ltrb[3]);
     glEnd();
 
+    GLenum err;
     while((err = glGetError()) != GL_NO_ERROR) {
         log_msg("Gl error %d", err);
     }
+}
+
+static MapTexture map_tex;
+
+static void
+SaveBounds([[maybe_unused]]XPLMMapLayerID layer, const float *ltrb,
+           XPLMMapProjectionID projection, [[maybe_unused]] void *inRefcon)
+{
+    map_tex.set_bounds(ltrb, projection);
+}
+
+void
+DrawSnow([[maybe_unused]] XPLMMapLayerID layer, const float *ltrb, [[maybe_unused]] float zoomRatio,
+         [[maybe_unused]] float mapUnitsPerUserInterfaceUnit,
+         [[maybe_unused]] XPLMMapStyle mapStyle, [[maybe_unused]] XPLMMapProjectionID projection,
+         [[maybe_unused]] void *inRefcon)
+{
+    map_tex.draw(ltrb);
 }
 
 
@@ -328,6 +251,7 @@ CreateMapLayer(const char *mapIdentifier, [[maybe_unused]] void *refcon)
 		params.iconCallback = NULL;
 		params.labelCallback = NULL;
 		params.layerName = "Snow";
+
 		map_layer = XPLMCreateMapLayer(&params);
 	}
 }
