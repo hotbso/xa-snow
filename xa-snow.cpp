@@ -39,6 +39,7 @@
 
 #include "airport.h"
 #include "depth_map.h"
+#include "coast_map.h"
 
 std::string xp_dir, plugin_dir, output_dir, pref_path;
 
