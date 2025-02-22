@@ -23,10 +23,14 @@
 #include <cstdio>
 #include <memory>
 #include <cmath>
+#include <cassert>
 #include <string>
 #include <tuple>
+#include <algorithm>
 
 #include "xa-snow.h"
+#include "coast_map.h"
+
 #include <spng.h> // For image processing, include after xa-snow.h
 
 
@@ -62,29 +66,44 @@ CoastMap::wrap_ij(int i, int j, int &wrapped_i, int& wrapped_j) {
     return;
 }
 
-bool
-CoastMap::is_water(int i, int j)
+std::tuple<int, int>
+CoastMap::ll_2_ij(float lon, float lat) const
 {
-    int wrapped_i, wrapped_j;
-    wrap_ij(i, j, wrapped_i, wrapped_j);
-    return (wmap[wrapped_i][wrapped_j] & 0x3) == sWater;
+    float lon_in = lon;
+    if (lon >= 360.0f)
+        lon -= 360.0f;
+    else if (lon < 0.0f)
+        lon += 360.0f;
+
+    lat = std::clamp(lat, -89.0f, 89.0f);
+
+    int i = lon * 10.0f;
+    int j = (lat + 90.0f) * 10.0f;
+    if (!(0 <= i && i < n_wm))
+        log_msg("%0.3f, %0.3f, %d, %d, %0.4f", lon, lat, i, j, lon_in);
+    assert(0 <= i && i < n_wm);
+    assert(0 <= j && j < m_wm);
+    return std::make_tuple(i, j);
 }
 
 bool
-CoastMap::is_land(int i, int j)
+CoastMap::is_water(float lon, float lat)
 {
-    int wrapped_i, wrapped_j;
-    wrap_ij(i, j, wrapped_i, wrapped_j);
-    return (wmap[wrapped_i][wrapped_j] & 0x3) == sLand;
+    auto [i, j] = ll_2_ij(lon, lat);
+    return (wmap[i][j] & 0x3) == sWater;
+}
+
+bool
+CoastMap::is_land(float lon, float lat)
+{
+    auto [i, j] = ll_2_ij(lon, lat);
+    return (wmap[i][j] & 0x3) == sLand;
 }
 
 std::tuple<bool, int, int, int>
-CoastMap::is_coast(int i, int j)
+CoastMap::is_coast(float lon, float lat)
 {
-    if (j >= m_wm) {
-        return {false, 0, 0, 0};
-    }
-
+    auto [i, j] = ll_2_ij(lon, lat);
     uint8_t v = wmap[i][j];
     bool yes_no = (v & 0x3) == sCoast;
     int dir = v >> 2;
@@ -165,7 +184,7 @@ CoastMap::load(const std::string& dir)
                 i_cs += n_wm;
             }
 
-            auto is_water = [&](int i, int j) {
+            auto is_water_pix = [&](int i, int j) {
                 j = m_wm - j; // for the image (0,0) is top left to flip y values
 
                 int wrapped_i, wrapped_j;
@@ -176,10 +195,10 @@ CoastMap::load(const std::string& dir)
             };
 
             auto is_land = [&](int i, int j) {
-                return !is_water(i, j);
+                return !is_water_pix(i, j);
             };
 
-            if (is_water(i, j)) {
+            if (is_water_pix(i, j)) {
                 wmap[i_cs][j_cs] = sWater;
 				// we check whether to the opposite side is only water and in direction 'dir' is land
 				// if yes we sum up all unity vectors in dir to get the 'average' direction
@@ -190,7 +209,7 @@ CoastMap::load(const std::string& dir)
                 for (int dir = 0; dir < 8; dir++) {
                     int di = dir_x[dir];
                     int dj = dir_y[dir];
-                    if (is_water(i - 2 * di, j - 2 * dj) && is_water(i - di, j - dj) && is_land(i + di, j + dj)) {
+                    if (is_water_pix(i - 2 * di, j - 2 * dj) && is_water_pix(i - di, j - dj) && is_land(i + di, j + dj)) {
                         float f = 1.0f;
                         if (dir & 1) {
                             f = 0.7071f; // diagonal = 1/sqrt(2)
@@ -224,28 +243,3 @@ CoastMap::load(const std::string& dir)
 
     return true;
 }
-
-#ifdef TEST_COAST
-// g++ -DTEST_COAST -std=c++20 -DLOCAL_DEBUGSTRING -DIBM -Wall -Werror -ISDK/CHeaders/XPLM -Iservices/ services/coast.cpp services/log_msg.cpp  -l:libpng.a -l:libz.a
-int main()
-{
-	bool res = CoastMapInit(".");
-	log_msg("res: %d", res);
-
-    int n_coast{0}, n_water{0}, n_land{0};
-
-    for (int i = 0; i < n_wm; i++)
-        for (int j = 0; j < m_wm; j++)
-            if (CMIsCoast(i, j).yes_no)
-                n_coast++;
-            else if (coast_map.is_water(i, j))
-                n_water++;
-            else if (coast_map.is_land(i, j))
-                n_land++;
-
-    log_msg("coast: %d, water: %d, land: %d, probe: %d", n_coast, n_water, n_land,
-            n_wm * m_wm - n_coast - n_water - n_land);
-	return 0;
-}
-#endif
-
