@@ -26,6 +26,7 @@
 
 #include "xa-snow.h"
 #include "depth_map.h"
+#include "coast_map.h"
 
 #include <spng.h> // For image processing, include after xa-snow.h
 
@@ -94,6 +95,7 @@ SaveImagePng(uint32_t *data, int width, int height, const std::string& png_path)
 
 static constexpr int kWidth = 3600;
 static constexpr int kHeight = 1800;
+static constexpr float kScale = 0.1f;   // idx to lon/lat
 
 // xlate right to get the common Mercator layout
 int xlate(int i) {
@@ -112,7 +114,10 @@ CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path)
     uint32_t pixel = RGBA(80, 80, 80);
     for (int i = 0; i < kWidth; i++) {
         for (int j = 0; j < kHeight; j++) {
-            if (coast_map.is_land(i, j)) {
+            float lon = i * kScale;
+            float lat = j * kScale - 90.0f;
+
+            if (coast_map.is_land(lon, lat)) {
                img[(kHeight - j - 1) * kWidth + xlate(i)] = pixel;
             }
         }
@@ -121,7 +126,9 @@ CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path)
     // snow
     for (int i = 0; i < kWidth; i++) {
         for (int j = 0; j < kHeight; j++) {
-            float sd = snod_map.get(i, j);
+            float lon = i * 0.1f;
+            float lat = j * 0.1f - 90.0f;
+            float sd = snod_map.get(lon, lat);
             if (sd <= 0.01f)
                 continue;
 
@@ -148,7 +155,9 @@ CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path)
     // coast line
     for (int i = 0; i < kWidth; i++) {
         for (int j = 0; j < kHeight; j++) {
-            auto [yes, _, _, dir] = coast_map.IsCoast(i, j);
+            float lon = i * kScale;
+            float lat = j * kScale - 90.0f;
+            auto [yes, _, _, dir] = coast_map.IsCoast(lon, lat);
             if (yes) {
                 float ang = static_cast<float>(dir) * 45.0f;
                 ang = 90.0f - ang; // for visualization use true hdg
