@@ -1,1 +1,1 @@
-VERSION=dev
+VERSION=v2.0.0-beta.3
