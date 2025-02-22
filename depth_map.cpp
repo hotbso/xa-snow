@@ -29,28 +29,38 @@
 
 #include "xa-snow.h"
 #include "depth_map.h"
-
+#include "coast_map.h"
 
 int DepthMap::seqno_base_;
+DepthMap::DepthMap(float resolution)
+{
+    seqno_ = ++seqno_base_;
+    resolution_ = resolution;
+    width_ = 360.0f / resolution_;
+    height_ = (int)(180.0f / resolution_) + 1;
+    val_ = std::make_unique<float[]>(height_ * width_);
+    extended_snow_ = std::make_unique<bool[]>(height_ * width_);
+    log_msg("DepthMap created: %d, width %d, height: %d", seqno_, width_, height_);
+}
 
 float
 DepthMap::get(int i_lon, int i_lat) const
 {
     // for lon we wrap around
-    if (i_lon >= kNlon) {
-        i_lon -= kNlon;
+    if (i_lon >= width_) {
+        i_lon -= width_;
     } else if (i_lon < 0) {
-        i_lon += kNlon;
+        i_lon += width_;
     }
 
     // for lat we just confine, doesn't make a difference anyway
-    if (i_lat >= kNlat) {
-        i_lat = kNlat - 1;
+    if (i_lat >= height_) {
+        i_lat = height_ - 1;
     } else if (i_lat < 0) {
         i_lat = 0;
     }
 
-    return val_[i_lon][i_lat];
+    return val_[i_lat * width_ + i_lon];
 }
 
 
@@ -65,16 +75,16 @@ DepthMap::get(float lon, float lat) const
         lon += 360;
     }
 
-    lon *= 10;
-    lat *= 10;
+    lon /= resolution_;
+    lat /= resolution_;
 
     // index of tile is lower left corner
-    int i_lon = static_cast<int>(lon);
-    int i_lat = static_cast<int>(lat);
+    int i_lon = lon;
+    int i_lat = lat;
 
     // (s, t) coordinates of (lon, lat) within tile, s,t in [0,1]
-    float s = lon - static_cast<float>(i_lon);
-    float t = lat - static_cast<float>(i_lat);
+    float s = lon - i_lon;
+    float t = lat - i_lat;
 
     //log_msg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
     float v00 = get(i_lon, i_lat);
@@ -96,9 +106,9 @@ DepthMap::get(float lon, float lat) const
 bool
 DepthMap::is_extended_snow(int i_lon, int i_lat) const
 {
-    assert(0 <= i_lon && i_lon < kNlon);
-    assert(0 <= i_lat && i_lat < kNlat);
-    return extended_snow_[i_lon][i_lat];
+    assert(0 <= i_lon && i_lon < width_);
+    assert(0 <= i_lat && i_lat < height_);
+    return extended_snow_[i_lat * width_ + i_lon];
 }
 
 void
@@ -127,16 +137,16 @@ DepthMap::load_csv(const char *csv_name)
         if (value < 0.001f)
             continue;
 
-        // Convert longitude and latitude to array indices
-        // This example assumes the CSV contains all longitudes and latitudes
-        int x = static_cast<int>(lon * 10);         // Adjust these calculations based on your data's range and resolution
-        int y = static_cast<int>((lat + 90) * 10);  // Adjust for negative latitudes
-        if (x < 0 || x >= kNlon || y < 0 || y >= kNlat) {
+        // Convert longitude and latitude to array indices (with rounding!)
+        int x = lon / resolution_ + 0.5f;
+        int y = (lat + 90.0f) / resolution_ + 0.5f;  // Adjust for negative latitudes
+
+        if (x < 0 || x >= width_ || y < 0 || y >= height_) {
             log_msg("invalid csv line: '%s'", line.c_str());
             continue;
         }
 
-        val_[x][y] = value;
+        val_[y * width_ + x] = value;
         counter++;
     }
 
@@ -150,11 +160,13 @@ DepthMap::extend_coastal_snow()
     const float min_sd = 0.02f; // only go higher than this snow depth
     int n_extend = 0;
 
-    for (int i = 0; i < kNlon; i++) {
-        for (int j = 0; j < kNlat; j++) {
+    for (int i = 0; i < width_; i++) {
+        for (int j = 0; j < height_; j++) {
             float sd = get(i, j);
             const int max_step = 3; // to look for inland snow ~ 5 to 10 km / step
-            auto [is_coast, dir_x, dir_y, dir_angle] = coast_map.is_coast(i, j);
+            float lon = i * resolution_;
+            float lat = j * resolution_ - 90.0f;
+            auto [is_coast, dir_x, dir_y, dir_angle] = coast_map.is_coast(lon, lat);
             if (is_coast && sd <= min_sd) {
                 // look for inland snow
                 int inland_dist = 0;
@@ -162,8 +174,10 @@ DepthMap::extend_coastal_snow()
                 for (int k = 1; k <= max_step; k++) {
                     int ii = i + k * dir_x;
                     int jj = j + k * dir_y;
+                    float lon = ii * resolution_;
+                    float lat = jj * resolution_ - 90.0f;
 
-                    if (k < max_step && coast_map.is_water(ii, jj)) { // if possible skip water
+                    if (k < max_step && coast_map.is_water(lon, lat)) { // if possible skip water
                         continue;
                     }
 
@@ -188,20 +202,20 @@ DepthMap::extend_coastal_snow()
                         }
                         int x = i + k * dir_x;
                         int y = j + k * dir_y;
-                        if (x >= kNlon)
-                            x -= kNlon;
+                        if (x >= width_)
+                            x -= width_;
                         else if (x < 0)
-                            x += kNlon;
+                            x += width_;
 
                         // the poles are tricky so we just clamp
                         // anyway it does not make a difference
-                        if (y >= kNlat)
-                            y = kNlat - 1;
+                        if (y >= height_)
+                            y = height_ - 1;
                         else if (y < 0)
                             y = 0;
 
-                        val_[x][y] = std::max(val_[x][y], inland_sd);
-                        extended_snow_[x][y] = true;
+                        val_[y * width_ + x] = std::max(val_[y * width_ + x], inland_sd);
+                        extended_snow_[y * width_ + x] = true;
                         n_extend++;
                     }
                 }

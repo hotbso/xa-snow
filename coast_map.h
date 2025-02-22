@@ -20,27 +20,27 @@
 //    USA
 //
 
-#ifndef _DEPTH_MAP_H_
-#define _DEPTH_MAP_H_
+#ifndef _COAST_MAP_H_
+#define _COAST_MAP_H_
 
-class DepthMap {
-    static int seqno_base_;
+#include <tuple>
 
-    int seqno_;
-    float resolution_;
-    int width_, height_;
+struct CoastMap {
+    // water map in 0.1° resolution
+    static constexpr int n_wm = 3600;
+    static constexpr int m_wm = 1800;
 
-    std::unique_ptr<float[]> val_;
-    std::unique_ptr<bool[]> extended_snow_;
+    uint8_t wmap [n_wm][m_wm];		// encoded as (dir << 2)|sXxx
 
-    void extend_coastal_snow();
-    float get(int i_lon, int i_lat) const;
+    void wrap_ij(int i, int j, int &wrapped_i, int& wrapped_j);
+    std::tuple<int, int>ll_2_ij(float lon, float lat) const;
 
- public:
-    DepthMap(float resolution);     // in fractions of 1° e.g. 0.25
-    ~DepthMap() { log_msg("DepthMap destroyed: %d", seqno_); }
-    float get(float lon, float lat) const;
-    bool is_extended_snow(int i_lon, int i_lat) const;
-    void load_csv(const char *csv_name);
+  public:
+    bool load(const std::string& dir);
+    bool is_water(float lon, float lat);
+    bool is_land(float lon, float lat);
+    std::tuple<bool, int, int, int> is_coast(float lon, float lat); // -> yes_no, dir_x, dir_y, grid_angle
 };
+
+extern CoastMap coast_map;
 #endif

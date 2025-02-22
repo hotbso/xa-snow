@@ -60,24 +60,8 @@ void StartAsyncDownload(bool sys_time, int day, int month, int hour);
 bool CheckAsyncDownload();
 
 
-struct CoastMap {
-    // water map in 0.1° resolution
-    static constexpr int n_wm = 3600;
-    static constexpr int m_wm = 1800;
-
-    uint8_t wmap [n_wm][m_wm];		// encoded as (dir << 2)|sXxx
-
-    void wrap_ij(int i, int j, int &wrapped_i, int& wrapped_j);
-
-  public:
-    bool load(const std::string& dir);
-    bool is_water(int i, int j);
-    bool is_land(int i, int j);
-    std::tuple<bool, int, int, int> is_coast(int i, int j); // -> yes_no, dir_x, dir_y, grid_angle
-};
 
 class DepthMap;
-extern CoastMap coast_map;
 
 extern std::unique_ptr<DepthMap> snod_map, new_snod_map;
 extern std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth); // snowNow, snowAreaWidth, iceNow

@@ -29,6 +29,7 @@
 #include <stdio.h>
 
 #include "xa-snow.h"
+#include "coast_map.h"
 
 std::string xp_dir;
 std::string plugin_dir;
