@@ -2,7 +2,7 @@ File
 
 ESACCI-LC-L4-WB-Ocean-Map-150m-P13Y-2000-v4.0.tif
 
-is provided by ESA (https://worldcover2021.esa.int/download) under license CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+is provided by ESA (http://maps.elie.ucl.ac.be/CCI/viewer/download.php) under license CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 ESACCI-LC-L4-WB-Ocean-Map-150m-P13Y-2000-v4.0.png is derived of the above-mentioned file with irfanview64 by
 scaling it down to 3600x1800 and saving it as uncompressed png.
