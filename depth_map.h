@@ -42,5 +42,6 @@ class DepthMap {
     float get(float lon, float lat) const;
     bool is_extended_snow(float lon, float lat) const;
     void load_csv(const char *csv_name);
+    int seqno() const { return seqno_; }
 };
 #endif
