@@ -184,7 +184,7 @@ DepthMap::extend_coastal_snow()
     for (int i = 0; i < width_; i++) {
         for (int j = 0; j < height_; j++) {
             float sd = val_[map_idx(i, j)];
-            const int max_step = 3; // to look for inland snow ~ 5 to 10 km / step
+            const int max_step = 2; // to look for inland snow ~ 10 to 20 km / step
             float lon = i * resolution_;
             float lat = j * resolution_ - 90.0f;
             auto [is_coast, dir_x, dir_y, dir_angle] = coast_map.is_coast(lon, lat);
