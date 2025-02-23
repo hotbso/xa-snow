@@ -32,8 +32,8 @@ struct CoastMap {
 
     uint8_t wmap [n_wm][m_wm];		// encoded as (dir << 2)|sXxx
 
-    void wrap_ij(int i, int j, int &wrapped_i, int& wrapped_j);
-    std::tuple<int, int>ll_2_ij(float lon, float lat) const;
+    std::tuple<int, int> wrap_ij(int i, int j) const;
+    std::tuple<int, int> ll_2_ij(float lon, float lat) const;
 
   public:
     bool load(const std::string& dir);
