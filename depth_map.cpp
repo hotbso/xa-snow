@@ -43,8 +43,8 @@ DepthMap::DepthMap(float resolution)
     log_msg("DepthMap created: %d, width %d, height: %d", seqno_, width_, height_);
 }
 
-float
-DepthMap::get(int i_lon, int i_lat) const
+int
+DepthMap::map_idx(int i_lon, int i_lat) const
 {
     // for lon we wrap around
     if (i_lon >= width_) {
@@ -60,7 +60,9 @@ DepthMap::get(int i_lon, int i_lat) const
         i_lat = 0;
     }
 
-    return val_[i_lat * width_ + i_lon];
+    int idx = i_lat * width_ + i_lon;
+    assert(0 <= idx && idx < width_ * height_);
+    return idx;
 }
 
 
@@ -87,10 +89,10 @@ DepthMap::get(float lon, float lat) const
     float t = lat - i_lat;
 
     //log_msg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
-    float v00 = get(i_lon, i_lat);
-    float v10 = get(i_lon + 1, i_lat);
-    float v01 = get(i_lon, i_lat + 1);
-    float v11 = get(i_lon + 1, i_lat + 1);
+    float v00 = val_[map_idx(i_lon, i_lat)];
+    float v10 = val_[map_idx(i_lon + 1, i_lat)];
+    float v01 = val_[map_idx(i_lon, i_lat + 1)];
+    float v11 = val_[map_idx(i_lon + 1, i_lat + 1)];
 
 	// Lagrange polynoms: pij = is 1 on corner ij and 0 elsewhere
     float p00 = (1 - s) * (1 - t);
@@ -103,12 +105,31 @@ DepthMap::get(float lon, float lat) const
     return v;
 }
 
+// return "some neighbor" has extended snow
 bool
-DepthMap::is_extended_snow(int i_lon, int i_lat) const
+DepthMap::is_extended_snow(float lon, float lat) const
 {
-    assert(0 <= i_lon && i_lon < width_);
-    assert(0 <= i_lat && i_lat < height_);
-    return extended_snow_[i_lat * width_ + i_lon];
+    // our snow world map is 3600x1801 [0,359.9]x[0,180.0]
+    lat += 90.0;
+
+    // longitude is -180 to 180, we need to convert it to 0 to 360
+    if (lon < 0) {
+        lon += 360;
+    }
+
+    lon /= resolution_;
+    lat /= resolution_;
+
+    // index of tile is lower left corner
+    int i_lon = lon;
+    int i_lat = lat;
+
+    //log_msg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
+    bool es00 = extended_snow_[map_idx(i_lon, i_lat)];
+    bool es10 = extended_snow_[map_idx(i_lon + 1, i_lat)];
+    bool es01 = extended_snow_[map_idx(i_lon, i_lat + 1)];
+    bool es11 = extended_snow_[map_idx(i_lon + 1, i_lat + 1)];
+    return (es00 || es01 || es10 || es11);
 }
 
 void
@@ -162,7 +183,7 @@ DepthMap::extend_coastal_snow()
 
     for (int i = 0; i < width_; i++) {
         for (int j = 0; j < height_; j++) {
-            float sd = get(i, j);
+            float sd = val_[map_idx(i, j)];
             const int max_step = 3; // to look for inland snow ~ 5 to 10 km / step
             float lon = i * resolution_;
             float lat = j * resolution_ - 90.0f;
@@ -181,7 +202,7 @@ DepthMap::extend_coastal_snow()
                         continue;
                     }
 
-                    float tmp = get(ii, jj);
+                    float tmp = val_[map_idx(ii, jj)];
                     if (tmp > sd && tmp > min_sd) { // found snow
                         inland_dist = k;
                         inland_sd = tmp;
