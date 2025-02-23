@@ -51,14 +51,14 @@ CoastMap coast_map;
 std::tuple<int, int>
 CoastMap::wrap_ij(int i, int j) const
 {
-    if (i >= n_wm) {
-        i -= n_wm;
+    if (i >= width_) {
+        i -= width_;
     } else if (i < 0) {
-        i += n_wm;
+        i += width_;
     }
 
-    if (j >= m_wm) {
-        j = m_wm - 1;
+    if (j >= height_) {
+        j = height_ - 1;
     } else if (j < 0) {
         j = 0;
     }
@@ -67,45 +67,46 @@ CoastMap::wrap_ij(int i, int j) const
 }
 
 // return nearest neighbor i,j
-std::tuple<int, int>
-CoastMap::ll_2_ij(float lon, float lat) const
+int
+CoastMap::ll_2_idx(float lon, float lat) const
 {
-    float lon_in = lon;
     if (lon >= 360.0f)
         lon -= 360.0f;
     else if (lon < 0.0f)
         lon += 360.0f;
 
-    lat = std::clamp(lat, -89.0f, 89.0f);
+    lat += 90.0f;
+    lat = std::clamp(lat, 5.0f, 175.0f);
+
+    lon /= resolution_;
+    lat /= resolution_;
 
     // must wrap after round
-    auto [i, j] = wrap_ij((int)(lon * 10.0f + 0.5f), (int)((lat + 90.0f) * 10.0f + 0.5f));
-    if (!(0 <= i && i < n_wm))
-        log_msg("%0.3f, %0.3f, %d, %d, %0.4f", lon, lat, i, j, lon_in);
-    assert(0 <= i && i < n_wm);
-    assert(0 <= j && j < m_wm);
-    return std::make_tuple(i, j);
+    auto [i, j] = wrap_ij((int)(lon + 0.5f), (int)(lat + 0.5f));
+    int idx = j * width_ + i;
+    assert(0 <= idx && idx < width_ * height_);
+    return idx;
 }
 
 bool
 CoastMap::is_water(float lon, float lat)
 {
-    auto [i, j] = ll_2_ij(lon, lat);
-    return (wmap[i][j] & 0x3) == sWater;
+    int idx = ll_2_idx(lon, lat);
+    return (wmap_[idx] & 0x3) == sWater;
 }
 
 bool
 CoastMap::is_land(float lon, float lat)
 {
-    auto [i, j] = ll_2_ij(lon, lat);
-    return (wmap[i][j] & 0x3) == sLand;
+    int idx = ll_2_idx(lon, lat);
+    return (wmap_[idx] & 0x3) == sLand;
 }
 
 std::tuple<bool, int, int, int>
 CoastMap::is_coast(float lon, float lat)
 {
-    auto [i, j] = ll_2_ij(lon, lat);
-    uint8_t v = wmap[i][j];
+    int idx = ll_2_idx(lon, lat);
+    uint8_t v = wmap_[idx];
     bool yes_no = (v & 0x3) == sCoast;
     int dir = v >> 2;
     return {yes_no, dir_x[dir], dir_y[dir], dir};
@@ -145,14 +146,15 @@ CoastMap::load(const std::string& dir)
         return false;
     }
 
-    int width = ihdr.width;
-    int height = ihdr.height;
+    width_ = ihdr.width;
+    height_ = ihdr.height;
     int color_type = ihdr.color_type;
     int bit_depth = ihdr.bit_depth;
 
-    log_msg("w: %d, h: %d, color_type: %d, bit_depth: %d", width, height, color_type, bit_depth);
+    log_msg("w: %d, h: %d, color_type: %d, bit_depth: %d", width_, height_, color_type, bit_depth);
 
-    if (width != n_wm || height != m_wm || bit_depth != 8) {
+    resolution_ = 360.0f / width_;
+    if ((resolution_ != 180.0f / height_) || bit_depth != 8) {
         log_msg("Invalid map");
         fclose(fp);
         spng_ctx_free(ctx);
@@ -162,9 +164,9 @@ CoastMap::load(const std::string& dir)
     log_msg("Decoded: '%s', %s", filename.c_str(), "PNG");
 
     // ~ 20 MB, so no stack allocation RGBA = uint32_t
-    auto img = std::make_unique<uint32_t[]>(m_wm * n_wm);
+    auto img = std::make_unique<uint32_t[]>(height_ * width_);
 
-    ret = spng_decode_image(ctx, img.get(), sizeof(uint32_t) * m_wm * n_wm, SPNG_FMT_RGBA8, 0);
+    ret = spng_decode_image(ctx, img.get(), sizeof(uint32_t) * height_ * width_, SPNG_FMT_RGBA8, 0);
     fclose(fp);
     spng_ctx_free(ctx);
 
@@ -173,31 +175,31 @@ CoastMap::load(const std::string& dir)
         return false;
     }
 
-    for (int i = 0; i < n_wm; i++) {
-        for (int j = 10; j < m_wm - 10; j++) { // stay away from the poles
+    wmap_ = std::make_unique<uint8_t[]>(height_ * width_);
+    for (int i = 0; i < width_; i++) {
+        for (int j = 10; j < height_ - 10; j++) { // stay away from the poles
 			// determined by visual adjustment
 			// could be one system is at point, the other at center of grid
             int i_cs = i - 3;
             int j_cs = j - 3;
 
-            i_cs -= n_wm / 2;
+            i_cs -= width_ / 2;
             if (i_cs < 0) {
-                i_cs += n_wm;
+                i_cs += width_;
             }
 
             auto is_water_pix = [&](int i, int j) {
-                j = m_wm - j; // as the image (0,0) is top left to flip y values
+                j = height_ - j; // as the image (0,0) is top left to flip y values
                 auto [ii, jj] = wrap_ij(i, j);
-                uint32_t pixel = img[jj * n_wm + ii];
+                uint32_t pixel = img[jj * width_ + ii];
                 return (pixel & 0x00FFFFFF) == 0;   // not the alpha channel
             };
 
-            auto is_land = [&](int i, int j) {
-                return !is_water_pix(i, j);
-            };
+            int idx = j_cs * width_ + i_cs;
+            assert(0 <= idx && idx < width_ * height_);
 
             if (is_water_pix(i, j)) {
-                wmap[i_cs][j_cs] = sWater;
+                wmap_[idx] = sWater;
 				// we check whether to the opposite side is only water and in direction 'dir' is land
 				// if yes we sum up all unity vectors in dir to get the 'average' direction
                 float sum_x = 0.0f;
@@ -207,7 +209,12 @@ CoastMap::load(const std::string& dir)
                 for (int dir = 0; dir < 8; dir++) {
                     int di = dir_x[dir];
                     int dj = dir_y[dir];
-                    if (is_water_pix(i - 2 * di, j - 2 * dj) && is_water_pix(i - di, j - dj) && is_land(i + di, j + dj)) {
+                    if (is_water_pix(i - 2 * di, j - 2 * dj)
+                        && is_water_pix(i - di, j - dj)
+                        && (!is_water_pix(i + di, j + dj)               // check 3 steps for ANY land
+                            || !is_water_pix(i + 2 * di, j + 2 * dj)    // works better with fjords
+                            || !is_water_pix(i + 3 * di, j + 3 * dj))) {
+
                         float f = 1.0f;
                         if (dir & 1) {
                             f = 0.7071f; // diagonal = 1/sqrt(2)
@@ -231,10 +238,10 @@ CoastMap::load(const std::string& dir)
                         dir_land = 0;
                     }
 
-                    wmap[i_cs][j_cs] = (uint8_t)((dir_land << 2) | sCoast);
+                    wmap_[idx] = (uint8_t)((dir_land << 2) | sCoast);
                 }
             } else {
-                wmap[i_cs][j_cs] = sLand;
+                wmap_[idx] = sLand;
             }
         }
     }

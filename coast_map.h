@@ -26,14 +26,13 @@
 #include <tuple>
 
 struct CoastMap {
-    // water map in 0.1° resolution
-    static constexpr int n_wm = 3600;
-    static constexpr int m_wm = 1800;
+    int width_{0}, height_{0};
+    float resolution_;
 
-    uint8_t wmap [n_wm][m_wm];		// encoded as (dir << 2)|sXxx
+    std::unique_ptr<uint8_t[]> wmap_;		// encoded as (dir << 2)|sXxx
 
     std::tuple<int, int> wrap_ij(int i, int j) const;
-    std::tuple<int, int> ll_2_ij(float lon, float lat) const;
+    int ll_2_idx(float lon, float lat) const;   // -> index into map
 
   public:
     bool load(const std::string& dir);
