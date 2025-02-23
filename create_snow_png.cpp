@@ -141,7 +141,7 @@ CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path)
             uint32_t pixel;
             static constexpr int ofs = 70;
             uint8_t a = ofs + sd * (255 - ofs);
-            if (snod_map.is_extended_snow(i, j)) {
+            if (snod_map.is_extended_snow(lon,lat)) {
                 pixel = RGBA(a, 0, a);
             } else {
                 pixel = RGBA(0, a, a);
