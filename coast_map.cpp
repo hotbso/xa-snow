@@ -48,8 +48,9 @@ enum State {
 
 CoastMap coast_map;
 
-void
-CoastMap::wrap_ij(int i, int j, int &wrapped_i, int& wrapped_j) {
+std::tuple<int, int>
+CoastMap::wrap_ij(int i, int j) const
+{
     if (i >= n_wm) {
         i -= n_wm;
     } else if (i < 0) {
@@ -62,10 +63,10 @@ CoastMap::wrap_ij(int i, int j, int &wrapped_i, int& wrapped_j) {
         j = 0;
     }
 
-    wrapped_i =i; wrapped_j = j;
-    return;
+    return std::make_tuple(i, j);
 }
 
+// return nearest neighbor i,j
 std::tuple<int, int>
 CoastMap::ll_2_ij(float lon, float lat) const
 {
@@ -77,8 +78,8 @@ CoastMap::ll_2_ij(float lon, float lat) const
 
     lat = std::clamp(lat, -89.0f, 89.0f);
 
-    int i = lon * 10.0f;
-    int j = (lat + 90.0f) * 10.0f;
+    // must wrap after round
+    auto [i, j] = wrap_ij((int)(lon * 10.0f + 0.5f), (int)((lat + 90.0f) * 10.0f + 0.5f));
     if (!(0 <= i && i < n_wm))
         log_msg("%0.3f, %0.3f, %d, %d, %0.4f", lon, lat, i, j, lon_in);
     assert(0 <= i && i < n_wm);
@@ -185,12 +186,9 @@ CoastMap::load(const std::string& dir)
             }
 
             auto is_water_pix = [&](int i, int j) {
-                j = m_wm - j; // for the image (0,0) is top left to flip y values
-
-                int wrapped_i, wrapped_j;
-                wrap_ij(i, j, wrapped_i, wrapped_j);
-
-                uint32_t pixel = img[wrapped_j * n_wm + wrapped_i];
+                j = m_wm - j; // as the image (0,0) is top left to flip y values
+                auto [ii, jj] = wrap_ij(i, j);
+                uint32_t pixel = img[jj * n_wm + ii];
                 return (pixel & 0x00FFFFFF) == 0;   // not the alpha channel
             };
 
