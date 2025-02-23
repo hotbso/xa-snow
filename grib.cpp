@@ -233,10 +233,10 @@ DownloadAndProcessGribFile(bool sys_time, int month, int day, int hour)
         snod_csv_name = "snod.csv";
 
         // export grib file to csv
-        // 0:3600:0.1 means scan longitude from 0, 3600 steps with step 0.1 degree
-        // -90:1800:0.1 means scan latitude from -90, 1800 steps with step 0.1 degree
+        // 0:3600:0.25 means scan longitude from 0, 3600 steps with step 0.25 degree
+        // -90:1800:0.25 means scan latitude from -90, 1800 steps with step 0.25 degree
         std::string cmd = "\"" + plugin_dir + "/bin" + wgrib2
-            + "\" -s -lola 0:3600:0.1 -90:1800:0.1 \"" + snod_csv_name + "\" spread \"" + grib_file_path + "\" -match_fs SNOD";
+            + "\" -s -lola 0:3600:0.25 -90:1800:0.25 \"" + snod_csv_name + "\" spread \"" + grib_file_path + "\" -match_fs SNOD";
 
         log_msg("cmd:'%s'", cmd.c_str());
         int ex = sub_exec(cmd);
@@ -248,7 +248,7 @@ DownloadAndProcessGribFile(bool sys_time, int month, int day, int hour)
         log_msg("Using existing snod_csv file '%s'", snod_csv_name);
 
     // create new snow map
-    new_snod_map = std::make_unique<DepthMap>(0.1f);
+    new_snod_map = std::make_unique<DepthMap>(0.25f);
     new_snod_map->load_csv(snod_csv_name);
     CreateSnowMapPng(*new_snod_map, "snow_depth.png");
     return true;
