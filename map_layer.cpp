@@ -42,11 +42,11 @@
 static bool debug_colors;
 
 static XPLMMapLayerID map_layer;
-static int tex_id;
 
 class MapTexture
 {
     bool valid_{false};
+    GLuint tex_id_;
     int snod_seqno_;
 
     float left_lon_, right_lon_, bottom_lat_, top_lat_;
@@ -56,11 +56,27 @@ class MapTexture
     int width_, height_;
 
   public:
+    MapTexture();
+    ~MapTexture();
     void set_bounds(const float *ltrb, XPLMMapProjectionID projection);
     bool check_image();
 
     void draw(const float *ltrb);
 };
+
+static std::unique_ptr<MapTexture> map_tex;
+
+MapTexture::MapTexture()
+{
+    XPLMGenerateTextureNumbers((int *)&tex_id_, 1);
+    log_msg("MapTexture created, tex_id_: %d", tex_id_);
+}
+
+MapTexture::~MapTexture()
+{
+    glDeleteTextures(1, &tex_id_);
+    log_msg("MapTexture destroyed, tex_id_: %d", tex_id_);
+}
 
 void
 MapTexture::set_bounds(const float *ltrb, XPLMMapProjectionID projection)
@@ -157,7 +173,7 @@ MapTexture::check_image()
 
     SaveImagePng(data_.get(), width_, height_, "map.png");
 
-    XPLMBindTexture2d(tex_id, 0);
+    XPLMBindTexture2d(tex_id_, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
@@ -197,7 +213,7 @@ MapTexture::draw(const float *ltrb)
 			0 /* no depth writing */
 	);
 
-    XPLMBindTexture2d(tex_id, 0);
+    XPLMBindTexture2d(tex_id_, 0);
 
     glBegin(GL_QUADS);
         glTexCoord2f(left_s, bottom_t);
@@ -219,13 +235,12 @@ MapTexture::draw(const float *ltrb)
     }
 }
 
-static MapTexture map_tex;
-
 static void
 SaveBounds([[maybe_unused]]XPLMMapLayerID layer, const float *ltrb,
            XPLMMapProjectionID projection, [[maybe_unused]] void *inRefcon)
 {
-    map_tex.set_bounds(ltrb, projection);
+    if (map_tex)
+        map_tex->set_bounds(ltrb, projection);
 }
 
 void
@@ -234,7 +249,8 @@ DrawSnow([[maybe_unused]] XPLMMapLayerID layer, const float *ltrb, [[maybe_unuse
          [[maybe_unused]] XPLMMapStyle mapStyle, [[maybe_unused]] XPLMMapProjectionID projection,
          [[maybe_unused]] void *inRefcon)
 {
-    map_tex.draw(ltrb);
+    if (map_tex)
+        map_tex->draw(ltrb);
 }
 
 
@@ -272,12 +288,13 @@ void
 MapLayerStartHook(void)
 {
     debug_colors = (std::getenv("DEBUG_COLORS") != nullptr);
-    XPLMGenerateTextureNumbers(&tex_id, 1);
 }
 
 void
 MapLayerEnableHook(void)
 {
+    map_tex = std::make_unique<MapTexture>();
+
 	if (XPLMMapExists(XPLM_MAP_USER_INTERFACE)) {
 		CreateMapLayer(XPLM_MAP_USER_INTERFACE, NULL);
 	}
@@ -292,6 +309,8 @@ MapLayerDisableHook(void)
 		XPLMDestroyMapLayer(map_layer);
         map_layer = NULL;
 	}
+
+    map_tex = nullptr;
 }
 
 void
