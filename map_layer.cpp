@@ -43,6 +43,7 @@ static int tex_id;
 class MapTexture
 {
     bool valid_{false};
+    int snod_seqno_;
 
     float left_lon_, right_lon_, bottom_lat_, top_lat_;
     float left_x_, right_x_, bottom_y_, top_y_;
@@ -88,6 +89,9 @@ MapTexture::check_image_high_res()
 {
     if (snod_map == nullptr)
         return false;
+
+    if (snod_seqno_ != snod_map->seqno())   // have map of stale revision
+        valid_ = false;
 
     if (valid_)
         return true;
@@ -148,6 +152,7 @@ MapTexture::check_image_high_res()
     }
 
     valid_ = true;
+    snod_seqno_ = snod_map->seqno();
     log_msg("texture created, width: %d, height: %d", width_, height_);
     return true;
 }
