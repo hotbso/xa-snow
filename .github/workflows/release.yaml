@@ -55,7 +55,7 @@ jobs:
         shell: bash
         run: |
           set -x
-          sudo apt-get -y install libcurl4-openssl-dev libgl-dev libopengl0
+          sudo apt-get -y install libcurl4-openssl-dev libgl-dev libopengl-dev libopengl0
           find /usr/lib -type f -name '*GL.*'
           TAG=${GITHUB_REF##*/}
           if [ ! -z "$TAG" ]; then
