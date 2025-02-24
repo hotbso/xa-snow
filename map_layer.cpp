@@ -186,6 +186,7 @@ MapTexture::check_image()
     }
 
     valid_ = true;
+    data_ = nullptr;
     snod_seqno_ = snod_map->seqno();
     log_msg("texture created, width: %d, height: %d", width_, height_);
     return true;
