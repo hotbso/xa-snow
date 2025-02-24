@@ -28,6 +28,7 @@
 
 #include "xa-snow.h"
 #include "depth_map.h"
+#include "coast_map.h"
 
 #include "XPLMMap.h"
 #include "XPLMGraphics.h"
@@ -36,6 +37,9 @@
 
 #define RGBA(R,G,B) \
     ((150 << 24) | (((B)&0xff) << 16) | (((G)&0xff) << 8) | ((R)&0xff))
+
+// if you define DEBUG_COLORS in the environment you get a coloring of coast and extended snow
+static bool debug_colors;
 
 static XPLMMapLayerID map_layer;
 static int tex_id;
@@ -54,7 +58,6 @@ class MapTexture
   public:
     void set_bounds(const float *ltrb, XPLMMapProjectionID projection);
     bool check_image();
-    bool check_image_high_res();
 
     void draw(const float *ltrb);
 };
@@ -85,7 +88,7 @@ MapTexture::set_bounds(const float *ltrb, XPLMMapProjectionID projection)
 }
 
 bool
-MapTexture::check_image_high_res()
+MapTexture::check_image()
 {
     if (snod_map == nullptr)
         return false;
@@ -118,6 +121,14 @@ MapTexture::check_image_high_res()
             float sd = snod_map->get(lon, lat);
             //log_msg("(%d, %d), sd: %0.3f", i, j, sd);
 
+            bool is_coast = false;
+            if (debug_colors) {
+                int dir_x, dir_y, dir_angle;
+                std::tie(is_coast, dir_x, dir_y, dir_angle) = coast_map.is_coast(lon, lat);
+                if (is_coast)
+                    data_[pix_idx] = RGBA(0, 255, 0);
+            }
+
             if (sd > 0.015f) {
                 static constexpr float sd_max = 0.25f;
                 if (sd > sd_max)
@@ -127,7 +138,14 @@ MapTexture::check_image_high_res()
 
                 static constexpr int ofs = 50;
                 uint8_t a = ofs + sd * (255 - ofs);
-                uint32_t  pixel = RGBA(0, a, a);
+                uint32_t pixel;
+                if (debug_colors && snod_map->is_extended_snow(lon, lat))
+                    pixel = RGBA(a, 0, a);
+                else
+                    pixel = RGBA(0, a, a);
+
+                if (is_coast)
+                    pixel = RGBA(0, 255, 0);
                 //log_msg("pix_idx: %d, pixel: %08x", pix_idx, pixel);
                 data_[pix_idx] = pixel;
             }
@@ -157,92 +175,10 @@ MapTexture::check_image_high_res()
     return true;
 }
 
-bool
-MapTexture::check_image()
-{
-    if (snod_map == nullptr)
-        return false;
-
-    if (valid_)
-        return true;
-
-    int left_idx, right_idx, bottom_idx, top_idx, w_step;
-
-    if (left_lon_ < right_lon_) {
-        left_idx = (int)(left_lon_ * 10.0f);
-        right_idx = (int)(right_lon_ * 10.0f);
-        w_step = 1;
-        width_ = right_idx - left_idx;
-    } else {
-        // dateline
-        log_msg("crossing dateline NYI");
-        return false;
-    }
-
-    bottom_idx = (int)(bottom_lat_ * 10.0f) + 900;
-    top_idx = (int)(top_lat_ * 10.0f) + 900;
-    height_ = top_idx - bottom_idx;
-
-    data_ = std::make_unique<uint32_t[]>(width_ * height_);
-
-    int pix_idx = 0;
-    for (int j = bottom_idx; j < top_idx; j++) {
-        for (int i = left_idx; i < right_idx; i += w_step) {
-            uint32_t pixel;
-
-            float sd = snod_map->get(i, j);
-            //log_msg("(%d, %d), sd: %0.3f", i, j, sd);
-            auto [is_coast, dir_x, dir_y, dir_angle] = coast_map.is_coast(i, j);
-            if (is_coast)
-                data_[pix_idx] = RGBA(0, 255, 0);
-
-            if (sd > 0.015f) {
-                static constexpr float sd_max = 0.25f;
-                if (sd > sd_max)
-                    sd = sd_max;
-
-                sd = sd / sd_max;   // scale to [0,1]
-
-                static constexpr int ofs = 50;
-                uint8_t a = ofs + sd * (255 - ofs);
-                if (snod_map->is_extended_snow(i, j))
-                    pixel = RGBA(a, 0, a);
-                else
-                    pixel = RGBA(0, a, a);
-
-                if (is_coast)
-                    pixel = RGBA(0, 255, 0);
-
-                //log_msg("pix_idx: %d, pixel: %08x", pix_idx, pixel);
-                data_[pix_idx] = pixel;
-            }
-            pix_idx++;
-        }
-    }
-
-    SaveImagePng(data_.get(), width_, height_, "map.png");
-
-    XPLMBindTexture2d(tex_id, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width_, height_, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, data_.get());
-
-    GLenum err;
-    while((err = glGetError()) != GL_NO_ERROR) {
-        log_msg("Gl error %d", err);
-    }
-
-    valid_ = true;
-    log_msg("texture created, width: %d, height: %d", width_, height_);
-    return true;
-}
-
 void
 MapTexture::draw(const float *ltrb)
 {
-    if (! check_image_high_res())
+    if (! check_image())
         return;
 
     float left_s = std::clamp((ltrb[0] - left_x_) / (right_x_ - left_x_), 0.0f, 1.0f);
@@ -335,6 +271,7 @@ CreateMapLayer(const char *mapIdentifier, [[maybe_unused]] void *refcon)
 void
 MapLayerStartHook(void)
 {
+    debug_colors = (std::getenv("DEBUG_COLORS") != nullptr);
     XPLMGenerateTextureNumbers(&tex_id, 1);
 }
 
