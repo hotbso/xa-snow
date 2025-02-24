@@ -131,6 +131,7 @@ jobs:
           touch release/skunkcrafts_updater_blacklist.txt
 
           TAG=${GITHUB_REF##*/}
+          TARGET_BRANCH="release"
           if [[ $TAG == *"-test-"* ]]     # if TAG contains -test-
           then
               echo "This is a just a build test"
