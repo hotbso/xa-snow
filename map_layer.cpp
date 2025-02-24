@@ -33,7 +33,12 @@
 #include "XPLMMap.h"
 #include "XPLMGraphics.h"
 
+#if APL == 1
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl.h>
+#else
 #include <GL/gl.h>
+#endif
 
 #define RGBA(R,G,B) \
     ((150 << 24) | (((B)&0xff) << 16) | (((G)&0xff) << 8) | ((R)&0xff))
