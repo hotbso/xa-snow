@@ -47,18 +47,16 @@ int
 DepthMap::map_idx(int i_lon, int i_lat) const
 {
     // for lon we wrap around
-    if (i_lon >= width_) {
+    if (i_lon >= width_)
         i_lon -= width_;
-    } else if (i_lon < 0) {
+    else if (i_lon < 0)
         i_lon += width_;
-    }
 
     // for lat we just confine, doesn't make a difference anyway
-    if (i_lat >= height_) {
+    if (i_lat >= height_)
         i_lat = height_ - 1;
-    } else if (i_lat < 0) {
+    else if (i_lat < 0)
         i_lat = 0;
-    }
 
     int idx = i_lat * width_ + i_lon;
     assert(0 <= idx && idx < width_ * height_);
@@ -69,13 +67,12 @@ DepthMap::map_idx(int i_lon, int i_lat) const
 float
 DepthMap::get(float lon, float lat) const
 {
-    // our snow world map is 3600x1801 [0,359.9]x[0,180.0]
+    // our snow world's (lat, lon) is in [0,360) x [0, 180]
     lat += 90.0;
 
-    // longitude is -180 to 180, we need to convert it to 0 to 360
-    if (lon < 0) {
+    // longitude is (-180,180], we need to convert it to [0,360)
+    if (lon < 0)
         lon += 360;
-    }
 
     lon /= resolution_;
     lat /= resolution_;
@@ -172,6 +169,10 @@ DepthMap::load_csv(const char *csv_name)
     }
 
     log_msg("Loaded %d lines from CSV file '%s'", counter, csv_name);
+
+    // use multiple passes for snow extension, e.g. for fjords, islands close to coast, ...
+    extend_coastal_snow();
+    extend_coastal_snow();
     extend_coastal_snow();
 }
 
