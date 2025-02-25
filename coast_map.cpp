@@ -48,8 +48,8 @@ enum State {
 
 CoastMap coast_map;
 
-std::tuple<int, int>
-CoastMap::wrap_ij(int i, int j) const
+int
+CoastMap::ij_2_idx(int i, int j) const
 {
     if (i >= width_) {
         i -= width_;
@@ -63,7 +63,9 @@ CoastMap::wrap_ij(int i, int j) const
         j = 0;
     }
 
-    return std::make_tuple(i, j);
+    int idx = j * width_ + i;
+    assert(0 <= idx && idx < width_ * height_);
+    return idx;
 }
 
 // return nearest neighbor i,j
@@ -82,8 +84,7 @@ CoastMap::ll_2_idx(float lon, float lat) const
     lat /= resolution_;
 
     // must wrap after round
-    auto [i, j] = wrap_ij((int)(lon + 0.5f), (int)(lat + 0.5f));
-    int idx = j * width_ + i;
+    int idx = ij_2_idx((int)(lon + 0.5f), (int)(lat + 0.5f));
     assert(0 <= idx && idx < width_ * height_);
     return idx;
 }
@@ -176,26 +177,30 @@ CoastMap::load(const std::string& dir)
     }
 
     wmap_ = std::make_unique<uint8_t[]>(height_ * width_);
+
+    // i,j are is 'png' coordinates, lon 0 = center
     for (int i = 0; i < width_; i++) {
         for (int j = 10; j < height_ - 10; j++) { // stay away from the poles
+            // i/j_cm are in "coast map" coordinates, lon 0 = left
+
 			// determined by visual adjustment
 			// could be one system is at point, the other at center of grid
-            int i_cs = i - 3;
-            int j_cs = j - 3;
+            int i_cm = i - 3;
+            int j_cm = j - 3;
 
-            i_cs -= width_ / 2;
-            if (i_cs < 0) {
-                i_cs += width_;
+            i_cm -= width_ / 2;
+            if (i_cm < 0) {
+                i_cm += width_;
             }
 
             auto is_water_pix = [&](int i, int j) {
                 j = height_ - j; // as the image (0,0) is top left to flip y values
-                auto [ii, jj] = wrap_ij(i, j);
-                uint32_t pixel = img[jj * width_ + ii];
+                int idx = ij_2_idx(i, j);
+                uint32_t pixel = img[idx];
                 return (pixel & 0x00FFFFFF) == 0;   // not the alpha channel
             };
 
-            int idx = j_cs * width_ + i_cs;
+            int idx = j_cm * width_ + i_cm;
             assert(0 <= idx && idx < width_ * height_);
 
             if (is_water_pix(i, j)) {

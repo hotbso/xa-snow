@@ -31,7 +31,7 @@ struct CoastMap {
 
     std::unique_ptr<uint8_t[]> wmap_;		// encoded as (dir << 2)|sXxx
 
-    std::tuple<int, int> wrap_ij(int i, int j) const;
+    int ij_2_idx(int i, int j) const;           // -> index into map
     int ll_2_idx(float lon, float lat) const;   // -> index into map
 
   public:
