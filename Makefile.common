@@ -1,18 +1,17 @@
 SDK=SDK
-INCLUDES=-I. -I$(SDK)/CHeaders/XPLM -I$(SDK)/CHeaders/Widgets
+INCLUDES=-I. -I$(SDK)/CHeaders/XPLM
 
 # platform independent defines
 DEFINES=-DSPNG_STATIC
 
 SOURCES_CPP=airport.cpp coast_map.cpp collect_airports.cpp depth_map.cpp log_msg.cpp sub_exec.cpp \
-    grib.cpp create_snow_png.cpp xa-snow.cpp
+    grib.cpp map_layer.cpp create_snow_png.cpp xa-snow.cpp
+
 SOURCES_C= spng.c http_get.c
+
+GRIB_TEST_OBJS=coast_map.o depth_map.o sub_exec.o grib.o create_snow_png.o spng.o http_get.o
 
 # the c++ standard to use
 CXXSTD=-std=c++20
 
 OPT=-O3
-
-# e.g. -DNDEBUG
-DEBUG=
-

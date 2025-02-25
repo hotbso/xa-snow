@@ -1,5 +1,4 @@
 OBJDIR=./build/lin
-MYLIB=$(OBJDIR)/libsnow.a
 
 include version.mak
 include Makefile.common
@@ -8,6 +7,7 @@ TARGET=build/lin.xpl
 
 HEADERS=$(wildcard *.h)
 OBJECTS:=$(addprefix $(OBJDIR)/, $(SOURCES_CPP:.cpp=.o)) $(addprefix $(OBJDIR)/, $(SOURCES_C:.c=.o))
+GRIB_TEST_OBJS:=$(addprefix $(OBJDIR)/, $(GRIB_TEST_OBJS))
 
 # all sources to the dep files
 DEPFILES=$(SOURCES_CPP:%.cpp=$(DEPDIR)/%.d) $(SOURCES_C:%.c=$(DEPDIR)/%.d)
@@ -30,7 +30,7 @@ COMPILE.cpp = $(CXX) $(CXXFLAGS) $(DEPFLAGS) -c
 COMPILE.c = $(CC) $(CFLAGS) $(DEPFLAGS) -c
 
 LDFLAGS=-shared -rdynamic -nodefaultlibs -undefined_warning
-LIBS=$(MYLIB) -lcurl -lz
+LIBS=-lcurl -lz -lOpenGL
 
 $(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d version.mak | $(DEPDIR)
 	$(COMPILE.cpp) -o $@  $<
@@ -40,16 +40,13 @@ $(OBJDIR)/%.o: %.c $(DEPDIR)/%.d version.mak | $(DEPDIR)
 
 all: $(TARGET) grib_test.lin
 
-$(MYLIB): $(OBJECTS)
-	ar cr $@ $^
-
 XPL_DIR=/e/X-Plane-12-test
 
-$(TARGET): $(MYLIB)
-	$(LD) -o $(TARGET) $(OBJDIR)/xa-snow.o $(LIBS) $(LDFLAGS)
+$(TARGET): $(OBJECTS)
+	$(LD) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBS)
 
-grib_test.lin: grib_test.cpp log_msg.cpp $(MYLIB)
-	$(CXX) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp  $(LIBS)
+grib_test.lin: grib_test.cpp log_msg.cpp $(GRIB_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp  $(GRIB_TEST_OBJS) $(LIBS)
 
 $(DEPDIR): ; @mkdir -p $@
 

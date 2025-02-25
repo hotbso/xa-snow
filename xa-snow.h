@@ -70,4 +70,9 @@ extern std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth); //
 extern int CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path);
 extern int SaveImagePng(uint32_t *data, int width, int height, const std::string& png_path);
 
+// map_layer.cpp
+extern void MapLayerStartHook(void);
+extern void MapLayerEnableHook(void);
+extern void MapLayerDisableHook(void);
+extern void MapLayerStopHook(void);
 #endif

@@ -334,6 +334,8 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
     XPLMCheckMenuItem(xas_menu, autoupdate_item, pref_autoupdate ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     XPLMCheckMenuItem(xas_menu, limit_snow_item, pref_limit_snow ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 
+    MapLayerStartHook();
+
     log_msg("XPluginStart done, xp_dir: '%s'", xp_dir.c_str());
 
     // ... and off we go
@@ -344,6 +346,8 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
 PLUGIN_API void
 XPluginStop(void)
 {
+    MapLayerStartHook();
+
     // As an async can not be cancelled we have to wait
     // and collect the status. Otherwise X Plane won't shut down.
     while (CheckAsyncDownload()) {
@@ -355,6 +359,7 @@ XPluginStop(void)
 PLUGIN_API int
 XPluginEnable(void)
 {
+    MapLayerEnableHook();
     loop_cnt = 0;   // reinit snow download
     return 1;
 }
@@ -364,6 +369,7 @@ XPluginDisable(void)
 {
     SavePrefs();
     snod_map = nullptr;
+    MapLayerDisableHook();
 }
 
 PLUGIN_API void

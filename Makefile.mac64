@@ -7,12 +7,11 @@ TARGET=build/mac.xpl
 TARGET_arm=$(OBJDIR)/mac.xpl_arm
 TARGET_x86=$(OBJDIR)/mac.xpl_x86
 
-MYLIB_arm=$(OBJDIR)/libsnow_arm.a
-MYLIB_x86=$(OBJDIR)/libsnow_x86.a
-
 HEADERS=$(wildcard *.h)
 OBJECTS_arm:=$(addprefix $(OBJDIR)/, $(SOURCES_CPP:.cpp=.o_arm)) $(addprefix $(OBJDIR)/, $(SOURCES_C:.c=.o_arm))
 OBJECTS_x86=$(OBJECTS_arm:.o_arm=.o_x86)
+GRIB_TEST_OBJS_arm:=$(addprefix $(OBJDIR)/, $(GRIB_TEST_OBJS:.o=.o_arm))
+GRIB_TEST_OBJS_x86:=$(addprefix $(OBJDIR)/, $(GRIB_TEST_OBJS:.o=.o_x86))
 
 # all sources to the dep files
 DEPFILES=$(SOURCES_CPP:%.cpp=$(DEPDIR)/%.d) $(SOURCES_C:%.c=$(DEPDIR)/%.d)
@@ -23,19 +22,19 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 # if we run this script on Linux we it's osxcross 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-    CCx=clang -target x86_64-apple-macos11
-    CCa=clang -target arm64-apple-macos11
+    CCx=clang -target x86_64-apple-macos13
+    CCa=clang -target arm64-apple-macos13
 
-    CXXx=clang++ -target x86_64-apple-macos11
-    CXXa=clang++ -target arm64-apple-macos11
+    CXXx=clang++ -target x86_64-apple-macos13
+    CXXa=clang++ -target arm64-apple-macos13
     AR=ar
 else
     PATH:=/osxcross/target/bin:$(PATH)
-    CCx=o64-clang -mmacosx-version-min=12.0
-    CCa=oa64-clang -mmacosx-version-min=12.0
+    CCx=o64-clang -mmacosx-version-min=13.0
+    CCa=oa64-clang -mmacosx-version-min=13.0
 
-    CXXx=o64-clang++ -mmacosx-version-min=12.0
-    CXXa=oa64-clang++ -mmacosx-version-min=12.0
+    CXXx=o64-clang++ -mmacosx-version-min=13.0
+    CXXa=oa64-clang++ -mmacosx-version-min=13.0
     AR=llvm-ar
 endif
 
@@ -47,19 +46,13 @@ CXXFLAGS=$(CXXSTD) $(CFLAGS)
 LNFLAGS+=-dynamiclib -shared -rdynamic -fvisibility=hidden -Wl,-exported_symbols_list -Wl,linkscript.mac
 
 # https://pewpewthespells.com/blog/static_and_dynamic_libraries.html
-LIBS= $(MYLIB) -F $(SDK)/Libraries/Mac -framework XPLM -lcurl -lz
+LIBS= -F $(SDK)/Libraries/Mac -framework XPLM -framework OpenGL -lcurl -lz
 
 #test:
 #    $(foreach var,$(.VARIABLES),$(info $(var) = $($(var))))
 
 all: $(TARGET) grib_test.mac
     $(shell [ -d $(OBJDIR) ] || mkdir -p $(OBJDIR))
-
-$(MYLIB_arm): $(OBJECTS_arm)
-	$(AR) cr $@ $^
-
-$(MYLIB_x86): $(OBJECTS_x86)
-	$(AR) cr $@ $^
 
 $(OBJDIR)/%.o_arm: %.cpp version.mak
 	$(CXXa) $(CXXFLAGS) -o $@ -c $<
@@ -73,20 +66,20 @@ $(OBJDIR)/%.o_arm: %.c version.mak
 $(OBJDIR)/%.o_x86: %.c  version.mak
 	$(CCx) $(CFLAGS) -o $@ -c $<
 
-$(TARGET_arm): $(MYLIB_arm)
-	$(CXXa) -o $@ $(OBJDIR)/xa-snow.o_arm $(MYLIB_arm) $(LNFLAGS) $(LIBS)
+$(TARGET_arm): $(OBJECTS_arm)
+	$(CXXa) -o $@ $(OBJECTS_arm) $(LNFLAGS) $(LIBS)
 
-$(TARGET_x86): $(MYLIB_x86)
-	$(CXXx) -o $@ $(OBJDIR)/xa-snow.o_x86 $(MYLIB_x86) $(LNFLAGS) $(LIBS)
+$(TARGET_x86): $(OBJECTS_x86)
+	$(CXXx) -o $@ $(OBJECTS_x86) $(LNFLAGS) $(LIBS)
 
 $(TARGET): $(TARGET_arm) $(TARGET_x86)
 	lipo -create -output $@ $(TARGET_arm) $(TARGET_x86)
 
-$(OBJDIR)/grib_test.mac_arm: $(MYLIB_arm) grib_test.cpp log_msg.cpp
-	$(CXXa) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp $(MYLIB_arm) -lcurl -lz
+$(OBJDIR)/grib_test.mac_arm: $(GRIB_TEST_OBJS_arm) grib_test.cpp log_msg.cpp
+	$(CXXa) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp $(GRIB_TEST_OBJS_arm) -lcurl -lz
 
-$(OBJDIR)/grib_test.mac_x86: $(MYLIB_x86) grib_test.cpp log_msg.cpp
-	$(CXXx) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp $(MYLIB_x86) -lcurl -lz
+$(OBJDIR)/grib_test.mac_x86: $(GRIB_TEST_OBJS_x86) grib_test.cpp log_msg.cpp
+	$(CXXx) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp $(GRIB_TEST_OBJS_x86) -lcurl -lz
 
 grib_test.mac: $(OBJDIR)/grib_test.mac_arm $(OBJDIR)/grib_test.mac_x86
 	lipo -create -output $@ $(OBJDIR)/grib_test.mac_arm $(OBJDIR)/grib_test.mac_x86
@@ -97,4 +90,4 @@ $(DEPFILES):
 include $(wildcard $(DEPFILES))
 
 clean:
-	rm -f $(TARGET) $(OBJDIR)/*.o_* $(OBJDIR)/*.xpl_* $(OBJDIR)/*.a
+	rm -f $(TARGET) $(OBJDIR)/*.o_* $(OBJDIR)/*.xpl_*
