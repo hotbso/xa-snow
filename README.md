@@ -6,6 +6,8 @@ The plugin downloads "Accumulated Snow Depth" information from NOAA and depicts 
 
 ![Image](images/Screenshot2024-01-18at2_15_48PM.png)
 
+![Image](images/map.jpg)
+
 Download the latest (non-beta-)release here:   https://github.com/hotbso/xa-snow/releases/latest
 
 You can see all releases including betas here: https://github.com/hotbso/xa-snow/releases
