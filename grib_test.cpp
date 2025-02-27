@@ -44,7 +44,16 @@ flightloop_emul()
     }
 }
 
-//  g++ -std=c++20 -Wall -Iservices -ISDK/CHeaders/XPLM -DIBM=1 -DLOCAL_DEBUGSTRING async_download.cpp services/log_msg.cpp services/sub_exec.cpp -lcurl
+// note: arguments are lat lon here to facilitate cut&paste from google map
+static void
+probe_nearest_land(float lat, float lon)
+{
+   auto [is_water, have_nl, nl_lon, nl_lat] = coast_map.nearest_land(lon, lat);
+   log_msg("probe_nl: ll %10.5f,%10.5f, is_water: %d, have_nl: %d, nl_ll: %10.5f,%10.5f",
+           lat, lon, is_water, have_nl, nl_lat, nl_lon);
+
+}
+
 int main()
 {
     xp_dir = ".";
@@ -52,6 +61,15 @@ int main()
     output_dir = ".";
 
     coast_map.load(plugin_dir);
+
+    probe_nearest_land(54.401964, 11.311532);   // Fehmarn
+    probe_nearest_land(54.298076, 8.402394);    // West of St.Peter Ording
+    probe_nearest_land(55.258987, 12.963942);   // South of Trelleborg
+    probe_nearest_land(60.297378, 4.679465);    // Bergen
+    probe_nearest_land(55.191715, -27.482858);  // Atlantic
+    probe_nearest_land(59.182860, 18.937188);   // Stockholm
+    probe_nearest_land(63.378151, -21.262616);  // Iceland
+    probe_nearest_land(69.888846, 16.774953);   // Tromso
 
     StartAsyncDownload(true, 0, 0, 0);
     flightloop_emul();

@@ -28,17 +28,24 @@
 struct CoastMap {
     int width_{0}, height_{0};
     float resolution_;
+    std::unique_ptr<uint8_t[]> wmap_;
+    std::unique_ptr<uint8_t[]> nearest_land_;
 
-    std::unique_ptr<uint8_t[]> wmap_;		// encoded as (dir << 2)|sXxx
-
+    std::tuple<int, int> wrap_ij(int i, int j) const;
     int ij_2_idx(int i, int j) const;           // -> index into map
     int ll_2_idx(float lon, float lat) const;   // -> index into map
+    std::tuple<int, int> ll_2_ij(float lon, float lat) const;   // -> ll to ij
 
   public:
     bool load(const std::string& dir);
-    bool is_water(float lon, float lat);
-    bool is_land(float lon, float lat);
-    std::tuple<bool, int, int, int> is_coast(float lon, float lat); // -> yes_no, dir_x, dir_y, grid_angle
+    bool is_water(float lon, float lat) const;
+    bool is_land(float lon, float lat) const;
+
+    // -> yes_no, dir_x, dir_y, grid_angle
+    std::tuple<bool, int, int, int> is_coast(float lon, float lat) const;
+
+    // -> is_water, have_nl, lon, lat
+    std::tuple<bool, bool, float, float> nearest_land(float lon, float lat) const;
 };
 
 extern CoastMap coast_map;

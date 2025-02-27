@@ -156,8 +156,8 @@ DepthMap::load_csv(const char *csv_name)
             continue;
 
         // Convert longitude and latitude to array indices (with rounding!)
-        int x = lon / resolution_ + 0.5f;
-        int y = (lat + 90.0f) / resolution_ + 0.5f;  // Adjust for negative latitudes
+        int x = std::lroundf(lon / resolution_);
+        int y = std::lroundf((lat + 90.0f) / resolution_);  // Adjust for negative latitudes
 
         if (x < 0 || x >= width_ || y < 0 || y >= height_) {
             log_msg("invalid csv line: '%s'", line.c_str());
@@ -179,13 +179,13 @@ DepthMap::load_csv(const char *csv_name)
 void
 DepthMap::extend_coastal_snow()
 {
-    const float min_sd = 0.02f; // only go higher than this snow depth
+    static constexpr float min_sd = 0.02f; // only go higher than this snow depth
     int n_extend = 0;
 
     for (int i = 0; i < width_; i++) {
         for (int j = 0; j < height_; j++) {
             float sd = val_[map_idx(i, j)];
-            const int max_step = 2; // to look for inland snow ~ 10 to 20 km / step
+            static constexpr int max_step = 2; // to look for inland snow ~ 10 to 20 km / step
             float lon = i * resolution_;
             float lat = j * resolution_ - 90.0f;
             auto [is_coast, dir_x, dir_y, dir_angle] = coast_map.is_coast(lon, lat);
@@ -211,7 +211,7 @@ DepthMap::extend_coastal_snow()
                     }
                 }
 
-                const float decay = 0.8f; // snow depth decay per step
+                static constexpr float decay = 0.8f; // snow depth decay per step
                 if (inland_dist > 0) {
 					//log_msg("Inland snow detected for (%d, %d) at dist %d, sd: %0.3f %0.3f",
 					//		  i, j, inland_dist, sd, inland_sd)

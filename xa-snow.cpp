@@ -223,14 +223,26 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
 
     // throttle computations
     if (loop_cnt % 8 == 0) {
-        float snow_depth_n = snod_map->get(XPLMGetDataf(plane_lon_dr), XPLMGetDataf(plane_lat_dr));
+        float lon = XPLMGetDataf(plane_lon_dr);
+        float lat = XPLMGetDataf(plane_lat_dr);
+        float snow_depth_n = snod_map->get(lon, lat);
 
         if (pref_limit_snow)
             std::tie<float, bool>(snow_depth_n, legacy_airport_range) = LegacyAirportSnowDepth(snow_depth_n);
         else
             legacy_airport_range = false;
 
-        const float alpha = 0.7f;
+        if (!legacy_airport_range) {
+            // do "over water near to coast" processing
+            auto [is_water, have_nl, nl_lon, nl_lat] = coast_map.nearest_land(lon, lat);
+            if (is_water && have_nl) {
+                float snow_depth_n1 = snod_map->get(nl_lon, nl_lat);
+                //log_msg("nl snow: %0.2f", snow_depth_n1);
+                snow_depth_n = std::max(snow_depth_n, snow_depth_n1);
+            }
+        }
+
+        static constexpr float alpha = 0.2f;
         snow_depth = alpha * snow_depth_n + (1 - alpha) * snow_depth;
 
         // If we have no accumulated snow leave the datarefs alone and
