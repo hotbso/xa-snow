@@ -42,14 +42,14 @@
 #include "coast_map.h"
 
 std::string xp_dir, plugin_dir, output_dir, pref_path;
-
-XPLMDataRef plane_lat_dr, plane_lon_dr, plane_elevation_dr, plane_true_psi_dr,
-	plane_y_agl_dr, weather_mode_dr, rwy_cond_dr, sys_time_dr,
-    sim_current_month_dr, sim_current_day_dr, sim_local_hours_dr,
-    snow_dr, ice_dr, rwy_snow_dr;
-
+XPLMDataRef plane_lat_dr, plane_lon_dr, plane_elevation_dr, plane_y_agl_dr;
 XPLMProbeInfo_t probeinfo;
 XPLMProbeRef probe_ref;
+
+static XPLMDataRef weather_mode_dr, rwy_cond_dr, sys_time_dr,
+    sim_current_month_dr, sim_current_day_dr, sim_local_hours_dr,
+    snow_dr, ice_dr, rwy_snow_dr, framerate_period_dr;
+
 static XPLMMenuID xas_menu;
 
 // preferences
@@ -183,7 +183,7 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
              [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
              [[maybe_unused]] void *inRefcon)
 {
-    static float snow_depth, snow_now, rwy_snow, ice_now;
+    static float snow_depth, snow_depth_n, snow_now, rwy_snow, ice_now, alpha;
     static bool legacy_airport_range;
 
     if (loop_cnt == 0) {
@@ -225,7 +225,7 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
     if (loop_cnt % 8 == 0) {
         float lon = XPLMGetDataf(plane_lon_dr);
         float lat = XPLMGetDataf(plane_lat_dr);
-        float snow_depth_n = snod_map->get(lon, lat);
+        snow_depth_n = snod_map->get(lon, lat);
 
         if (pref_limit_snow)
             std::tie<float, bool>(snow_depth_n, legacy_airport_range) = LegacyAirportSnowDepth(snow_depth_n);
@@ -233,7 +233,7 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
             legacy_airport_range = false;
 
         if (!legacy_airport_range) {
-            // do "over water near to coast" processing
+            // do "over water close to coast" processing
             auto [is_water, have_nl, nl_lon, nl_lat] = coast_map.nearest_land(lon, lat);
             if (is_water && have_nl) {
                 float snow_depth_n1 = snod_map->get(nl_lon, nl_lat);
@@ -242,8 +242,8 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
             }
         }
 
-        static constexpr float alpha = 0.2f;
-        snow_depth = alpha * snow_depth_n + (1 - alpha) * snow_depth;
+        static constexpr float decay_time = 10.0f;   // s
+        alpha = XPLMGetDataf(framerate_period_dr) / decay_time;
 
         // If we have no accumulated snow leave the datarefs alone and
         // let X-Plane do its weather effect things
@@ -252,6 +252,8 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
 
         std::tie(snow_now, rwy_snow, ice_now) = SnowDepthToXplaneSnowNow(snow_depth);
     }
+
+    snow_depth = alpha * snow_depth_n + (1 - alpha) * snow_depth;
 
     // If we have no accumulated snow leave the datarefs alone and
     // let X-Plane do its weather effect things
@@ -310,7 +312,6 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
     plane_lat_dr = XPLMFindDataRef("sim/flightmodel/position/latitude");
     plane_lon_dr = XPLMFindDataRef("sim/flightmodel/position/longitude");
     plane_elevation_dr = XPLMFindDataRef("sim/flightmodel/position/elevation");
-    plane_true_psi_dr = XPLMFindDataRef("sim/flightmodel2/position/true_psi");
     plane_y_agl_dr = XPLMFindDataRef("sim/flightmodel2/position/y_agl");
 
     weather_mode_dr = XPLMFindDataRef("sim/weather/region/weather_source");
@@ -320,6 +321,7 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
     sim_current_month_dr = XPLMFindDataRef("sim/cockpit2/clock_timer/current_month");
     sim_current_day_dr = XPLMFindDataRef("sim/cockpit2/clock_timer/current_day");
     sim_local_hours_dr = XPLMFindDataRef("sim/cockpit2/clock_timer/local_time_hours");
+    framerate_period_dr = XPLMFindDataRef("sim/time/framerate_period");
 
     probeinfo.structSize = sizeof(XPLMProbeInfo_t);
     probe_ref = XPLMCreateProbe(xplm_ProbeY);

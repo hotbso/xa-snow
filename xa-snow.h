@@ -41,8 +41,7 @@ static constexpr float kD2R = std::numbers::pi/180.0;
 static constexpr float kLat2m = 111120;                 // 1° lat in m
 static constexpr float kF2M = 0.3048;                   // 1 ft [m]
 
-extern XPLMDataRef plane_lat_dr, plane_lon_dr, plane_elevation_dr, plane_true_psi_dr,
-	plane_y_agl_dr;
+extern XPLMDataRef plane_lat_dr, plane_lon_dr, plane_elevation_dr, plane_y_agl_dr;
 
 extern XPLMProbeInfo_t probeinfo;
 extern XPLMProbeRef probe_ref;
@@ -58,8 +57,6 @@ extern int sub_exec(const std::string& command);
 
 void StartAsyncDownload(bool sys_time, int day, int month, int hour);
 bool CheckAsyncDownload();
-
-
 
 class DepthMap;
 
