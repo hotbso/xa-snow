@@ -360,7 +360,7 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
 PLUGIN_API void
 XPluginStop(void)
 {
-    MapLayerStartHook();
+    MapLayerStopHook();
 
     // As an async can not be cancelled we have to wait
     // and collect the status. Otherwise X Plane won't shut down.
