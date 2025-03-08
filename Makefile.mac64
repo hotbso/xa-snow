@@ -19,7 +19,7 @@ DEPFILES=$(SOURCES_CPP:%.cpp=$(DEPDIR)/%.d) $(SOURCES_C:%.c=$(DEPDIR)/%.d)
 DEPDIR := $(OBJDIR)/.deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-# if we run this script on Linux we it's osxcross 
+# if we run this script on Linux it's osxcross
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
     CCx=clang -target x86_64-apple-macos13
@@ -83,7 +83,7 @@ $(OBJDIR)/grib_test.mac_x86: $(GRIB_TEST_OBJS_x86) grib_test.cpp log_msg.cpp
 
 grib_test.mac: $(OBJDIR)/grib_test.mac_arm $(OBJDIR)/grib_test.mac_x86
 	lipo -create -output $@ $(OBJDIR)/grib_test.mac_arm $(OBJDIR)/grib_test.mac_x86
-  
+
 $(DEPDIR): ; @mkdir -p $@
 
 $(DEPFILES):
