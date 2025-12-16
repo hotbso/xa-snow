@@ -18,7 +18,7 @@ Support Discord: https://discord.gg/dN9gvFdfAZ
 Just unpack the zip in your <X Plane>/Resources/plugins directory.
 
 After you've installed it once skunkcrafts updater will take care.
-Be sure you select the right channel PROD or BETA.
+Be sure you select the right channel PROD or BETA. Only use BETA if you fully understand how skunkcrafts works.
 
 Download link for skunkcrafts updater:
 
@@ -48,7 +48,7 @@ When enabled during a longer a flight xa-snow updates snow depth data. As downlo
 As this may lead to stability issues the option may go away in future updates.
 
 **Limit snow for legacy airports**\
-Legacy (= mostly XP11) sceneries do not feature weather aware textures and show way to much snow and therefore make runways and taxiways unusable.\
+Legacy (= mostly XP11) sceneries do not feature weather aware textures and show way too much snow and therefore make runways and taxiways unusable.\
 Enabling this option smoothly reduces snow depth when you approach such an airport to a limit which make runways and taxiways visible and usable.
 
 ## Credits
