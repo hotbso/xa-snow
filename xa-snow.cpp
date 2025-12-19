@@ -22,6 +22,14 @@
 
 // Coding style is loosely following Google's guide: https://google.github.io/styleguide/cppguide.html
 
+// ===============================================================================
+// XP 12.3.0+ private datarefs for snow are (re-)set per loop so the plugin must
+// set them in each flight loop callback
+// while
+// XP 12.4.0+ private datarefs are sticky and keep their value and need to be reset on
+// plugin disable or e.g. move to a different airport
+// ===============================================================================
+
 #include <cstring>
 #include <cstdio>
 #include <string>
@@ -55,6 +63,10 @@ static XPLMDataRef weather_mode_dr, rwy_cond_dr, sys_time_dr,
     snow_dr, ice_dr, rwy_snow_dr, framerate_period_dr, sim_version_dr;
 
 static XPLMMenuID xas_menu;
+static int xp_version;
+
+static bool private_drefs_inited;
+static float snow_dr_initial, ice_dr_initial, rwy_snow_dr_initial;
 
 // preferences
 static int pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow;
@@ -71,17 +83,18 @@ std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth)  // snowNo
     static const std::array<float, 7> snow_area_width_tab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
     static const std::array<float, 7> ice_now_tab = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
 
-    auto const& snow_now_tab = (XPLMGetDatai(sim_version_dr) > 123300 ? snow_now_tab_post_124 : snow_now_tab_pre_124);
+    auto const& snow_now_tab = (xp_version >= 124000 ? snow_now_tab_post_124 : snow_now_tab_pre_124);
     if (depth >= snow_depth_tab.back()) {
         return std::make_tuple(snow_now_tab.back(), snow_area_width_tab.back(), ice_now_tab.back());
     }
 
+    float snow_now_value = (xp_version >= 124000 ? snow_dr_initial : 1.2f);
+
     if (depth <= snow_depth_tab.front()) {
-        return std::make_tuple(1.2f, snow_area_width_tab.front(), ice_now_tab.front());
+        return std::make_tuple(snow_now_value, snow_area_width_tab.front(), ice_now_tab.front());
     }
 
     // piecewise linear interpolation
-    float snow_now_value = 1.2f;
     float ice_now_value = ice_now_tab.front();
     float snow_area_width_value = snow_area_width_tab.front();
 
@@ -152,10 +165,9 @@ static void MenuCB([[maybe_unused]] void* menu_ref, void* item_ref) {
 
 // private drefs need delayed initialization
 static bool InitPrivateDrefs() {
-    static bool drefs_inited;
 
-    if (!drefs_inited) {
-        drefs_inited = true;
+    if (!private_drefs_inited) {
+        private_drefs_inited = true;
         bool success = true;
         snow_dr = XPLMFindDataRef("sim/private/controls/wxr/snow_now");
         success = success && (snow_dr != NULL);
@@ -170,6 +182,13 @@ static bool InitPrivateDrefs() {
             LogMsg("Could not map required private datarefs");
             return false;
         }
+
+        // save initial values for restore on disable
+        snow_dr_initial = XPLMGetDataf(snow_dr);
+        ice_dr_initial = XPLMGetDataf(ice_dr);
+        rwy_snow_dr_initial = XPLMGetDataf(rwy_snow_dr);
+        LogMsg("snow_dr_initial: %f, ice_dr_initial: %f, rwy_snow_dr_initial: %f",
+                snow_dr_initial, ice_dr_initial, rwy_snow_dr_initial);
     }
 
     return true;
@@ -187,6 +206,14 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
 
         if (!InitPrivateDrefs())
             return 0;  // Bye, if we don't have them by now we will never get them
+
+        // We may come here after a move to a different airport, so
+        // XP 12.4.0+ private datarefs need to be reset
+        if (private_drefs_inited) {
+            XPLMSetDataf(snow_dr, snow_dr_initial);
+            XPLMSetDataf(ice_dr, ice_dr_initial);
+            XPLMSetDataf(rwy_snow_dr, rwy_snow_dr_initial);
+        }
 
         if (!pref_historical)
             StartAsyncDownload(true, 0, 0, 0);
@@ -316,6 +343,8 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     framerate_period_dr = XPLMFindDataRef("sim/time/framerate_period");
 
     sim_version_dr = XPLMFindDataRef("sim/version/xplane_internal_version");
+    xp_version = XPLMGetDatai(sim_version_dr);
+    LogMsg("X-Plane version: %d", xp_version);
 
     probeinfo.structSize = sizeof(XPLMProbeInfo_t);
     probe_ref = XPLMCreateProbe(xplm_ProbeY);
@@ -371,12 +400,20 @@ PLUGIN_API void XPluginDisable(void) {
     SavePrefs();
     snod_map = nullptr;
     MapLayerDisableHook();
+
+    // XP 12.4.x private datarefs need to be reset on disable
+    if (private_drefs_inited) {
+        XPLMSetDataf(snow_dr, snow_dr_initial);
+        XPLMSetDataf(ice_dr, ice_dr_initial);
+        XPLMSetDataf(rwy_snow_dr, rwy_snow_dr_initial);
+    }
 }
 
 PLUGIN_API void XPluginReceiveMessage([[maybe_unused]] XPLMPluginID in_from, long in_msg, void* in_param) {
     if (((in_msg == XPLM_MSG_PLANE_LOADED && in_param == 0) || (in_msg == XPLM_MSG_SCENERY_LOADED)) &&
         pref_autoupdate) {
         LogMsg("Plane/Scenery loaded, reloading snow");
+
         loop_cnt = 0;
     }
 }
