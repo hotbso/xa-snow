@@ -48,7 +48,7 @@ XPLMProbeRef probe_ref;
 
 static XPLMDataRef weather_mode_dr, rwy_cond_dr, sys_time_dr,
     sim_current_month_dr, sim_current_day_dr, sim_local_hours_dr,
-    snow_dr, ice_dr, rwy_snow_dr, framerate_period_dr;
+    snow_dr, ice_dr, rwy_snow_dr, framerate_period_dr, sim_version_dr;
 
 static XPLMMenuID xas_menu;
 
@@ -63,10 +63,12 @@ std::tuple<float, float, float>
 SnowDepthToXplaneSnowNow(float depth) // snowNow, snowAreaWidth, iceNow
 {
     static const std::array<float, 7> snow_depth_tab      = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
-    static const std::array<float, 7> snow_now_tab        = {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
+    static const std::array<float, 7> snow_now_tab_pre_124= {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
+    static const std::array<float, 7> snow_now_tab_post_124={0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
     static const std::array<float, 7> snow_area_width_tab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
     static const std::array<float, 7> ice_now_tab         = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
 
+    auto const& snow_now_tab = (XPLMGetDatai(sim_version_dr) > 123300 ? snow_now_tab_post_124 : snow_now_tab_pre_124);
     if (depth >= snow_depth_tab.back()) {
         return std::make_tuple(snow_now_tab.back(), snow_area_width_tab.back(), ice_now_tab.back());
     }
@@ -322,6 +324,8 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
     sim_current_day_dr = XPLMFindDataRef("sim/cockpit2/clock_timer/current_day");
     sim_local_hours_dr = XPLMFindDataRef("sim/cockpit2/clock_timer/local_time_hours");
     framerate_period_dr = XPLMFindDataRef("sim/time/framerate_period");
+
+    sim_version_dr = XPLMFindDataRef("sim/version/xplane_internal_version");
 
     probeinfo.structSize = sizeof(XPLMProbeInfo_t);
     probe_ref = XPLMCreateProbe(xplm_ProbeY);
