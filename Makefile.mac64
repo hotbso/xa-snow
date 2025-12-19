@@ -1,6 +1,5 @@
 OBJDIR=./build/mac
 
-include version.mak
 include Makefile.common
 
 TARGET=build/mac.xpl
@@ -38,9 +37,8 @@ else
     AR=llvm-ar
 endif
 
-DEFS=-DAPL=1 -fPIC -fno-stack-protector -fvisibility=hidden
-
-CFLAGS+=$(OPT) -Wall $(INCLUDES) $(DEBUG) -DVERSION=\"$(VERSION)\" $(DEFS)
+CFLAGS+=$(DEFINES) $(OPT) -Wall $(INCLUDES) $(DEBUG) \
+    -DAPL=1 -fPIC -fno-stack-protector -fvisibility=hidden
 CXXFLAGS=$(CXXSTD) $(CFLAGS)
 
 LNFLAGS+=-dynamiclib -shared -rdynamic -fvisibility=hidden -Wl,-exported_symbols_list -Wl,linkscript.mac
@@ -75,11 +73,11 @@ $(TARGET_x86): $(OBJECTS_x86)
 $(TARGET): $(TARGET_arm) $(TARGET_x86)
 	lipo -create -output $@ $(TARGET_arm) $(TARGET_x86)
 
-$(OBJDIR)/grib_test.mac_arm: $(GRIB_TEST_OBJS_arm) grib_test.cpp log_msg.cpp
-	$(CXXa) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp $(GRIB_TEST_OBJS_arm) -lcurl -lz
+$(OBJDIR)/grib_test.mac_arm: $(GRIB_TEST_OBJS_arm) grib_test.cpp ../xplib/log_msg.cpp
+	$(CXXa) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp ../xplib/log_msg.cpp $(GRIB_TEST_OBJS_arm) -lcurl -lz
 
-$(OBJDIR)/grib_test.mac_x86: $(GRIB_TEST_OBJS_x86) grib_test.cpp log_msg.cpp
-	$(CXXx) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp log_msg.cpp $(GRIB_TEST_OBJS_x86) -lcurl -lz
+$(OBJDIR)/grib_test.mac_x86: $(GRIB_TEST_OBJS_x86) grib_test.cpp ../xplib/log_msg.cpp
+	$(CXXx) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp ../xplib/log_msg.cpp $(GRIB_TEST_OBJS_x86) -lcurl -lz
 
 grib_test.mac: $(OBJDIR)/grib_test.mac_arm $(OBJDIR)/grib_test.mac_x86
 	lipo -create -output $@ $(OBJDIR)/grib_test.mac_arm $(OBJDIR)/grib_test.mac_x86

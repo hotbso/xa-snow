@@ -1,6 +1,5 @@
 OBJDIR=./build/win
 
-include version.mak
 include Makefile.common
 
 TARGET=build/win.xpl
@@ -19,7 +18,7 @@ CXX=g++
 CC=gcc
 LD=g++
 
-CFLAGS+=-DVERSION=\"$(VERSION)\"  $(DEFINES) $(OPT) -Wextra -Wall  \
+CFLAGS+= $(DEFINES) $(OPT) -Wextra -Wall  \
 	-fdiagnostics-color -Wno-format-overflow -Wno-format-truncation \
     -DWINDOWS -DWIN32   -DIBM=1 \
 	$(INCLUDES) $(DEBUG)

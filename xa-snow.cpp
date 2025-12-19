@@ -41,6 +41,8 @@
 #include "depth_map.h"
 #include "coast_map.h"
 
+#include "version.h"
+
 const char *log_msg_prefix = "xa-snow: ";
 
 std::string xp_dir, plugin_dir, output_dir, pref_path;
