@@ -81,7 +81,7 @@ sub_exec(const std::string& command)
         &si,
         &pi)){
         //logMessage(simple_format("CreateProcess failed %.", GetLastError()));
-        log_msg("CreateProcess failed");
+        LogMsg("CreateProcess failed");
         ec = std::error_code(GetLastError(), std::system_category());
         CloseHandle(hStdOutWrite);
         CloseHandle(hStdOutRead);
@@ -115,7 +115,7 @@ sub_exec(const std::string& command)
 
     ec.clear();
     if (exit_code != 0)
-        log_msg("sub_exec output: '%s', exit_code: %ld", output.c_str(), exit_code);
+        LogMsg("sub_exec output: '%s', exit_code: %ld", output.c_str(), exit_code);
 
     return exit_code;
 
@@ -126,7 +126,7 @@ sub_exec(const std::string& command)
 
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
-        log_msg("popen() failed!");
+        LogMsg("popen() failed!");
         return 1;
     }
 
@@ -137,7 +137,7 @@ sub_exec(const std::string& command)
     exit_code = pclose(pipe);
 
     if (exit_code != 0)
-        log_msg("sub_exec output: '%s', exit_code: %d", output.c_str(), exit_code);
+        LogMsg("sub_exec output: '%s', exit_code: %d", output.c_str(), exit_code);
 
     return exit_code;
 #endif

@@ -41,14 +41,15 @@
 #include "depth_map.h"
 #include "coast_map.h"
 
+const char *log_msg_prefix = "xa-snow: ";
+
 std::string xp_dir, plugin_dir, output_dir, pref_path;
 XPLMDataRef plane_lat_dr, plane_lon_dr, plane_elevation_dr, plane_y_agl_dr;
 XPLMProbeInfo_t probeinfo;
 XPLMProbeRef probe_ref;
 
-static XPLMDataRef weather_mode_dr, rwy_cond_dr, sys_time_dr,
-    sim_current_month_dr, sim_current_day_dr, sim_local_hours_dr,
-    snow_dr, ice_dr, rwy_snow_dr, framerate_period_dr;
+static XPLMDataRef weather_mode_dr, rwy_cond_dr, sys_time_dr, sim_current_month_dr, sim_current_day_dr,
+    sim_local_hours_dr, snow_dr, ice_dr, rwy_snow_dr, framerate_period_dr;
 
 static XPLMMenuID xas_menu;
 
@@ -59,13 +60,12 @@ static int override_item, no_rwy_ice_item, historical_item, autoupdate_item, lim
 
 static int loop_cnt;
 
-std::tuple<float, float, float>
-SnowDepthToXplaneSnowNow(float depth) // snowNow, snowAreaWidth, iceNow
+std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth)  // snowNow, snowAreaWidth, iceNow
 {
-    static const std::array<float, 7> snow_depth_tab      = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
-    static const std::array<float, 7> snow_now_tab        = {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
+    static const std::array<float, 7> snow_depth_tab = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
+    static const std::array<float, 7> snow_now_tab = {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
     static const std::array<float, 7> snow_area_width_tab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
-    static const std::array<float, 7> ice_now_tab         = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
+    static const std::array<float, 7> ice_now_tab = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
 
     if (depth >= snow_depth_tab.back()) {
         return std::make_tuple(snow_now_tab.back(), snow_area_width_tab.back(), ice_now_tab.back());
@@ -95,42 +95,36 @@ SnowDepthToXplaneSnowNow(float depth) // snowNow, snowAreaWidth, iceNow
     return std::make_tuple(snow_now_value, snow_area_width_value, ice_now_value);
 }
 
-static void
-SavePrefs()
-{
-    FILE *f = fopen(pref_path.c_str(), "w");
+static void SavePrefs() {
+    FILE* f = fopen(pref_path.c_str(), "w");
     if (NULL == f)
         return;
 
     fprintf(f, "%d,%d,%d,%d,%d", pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
     fclose(f);
 
-    log_msg("Saving preferences to '%s'",  pref_path.c_str());
-    log_msg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_limit_snow: %d",
-             pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
+    LogMsg("Saving preferences to '%s'", pref_path.c_str());
+    LogMsg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_limit_snow: %d",
+            pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
 }
 
-static void
-LoadPrefs()
-{
-    FILE *f  = fopen(pref_path.c_str(), "r");
+static void LoadPrefs() {
+    FILE* f = fopen(pref_path.c_str(), "r");
     if (NULL == f)
         return;
 
-    log_msg("Loading preferences from '%s'",  pref_path.c_str());
+    LogMsg("Loading preferences from '%s'", pref_path.c_str());
 
-    [[maybe_unused]]int n = fscanf(f, "%i,%i,%i,%i,%i",
-                                   &pref_override, &pref_no_rwy_ice, &pref_historical, &pref_autoupdate, &pref_limit_snow);
+    [[maybe_unused]] int n = fscanf(f, "%i,%i,%i,%i,%i", &pref_override, &pref_no_rwy_ice, &pref_historical,
+                                    &pref_autoupdate, &pref_limit_snow);
     fclose(f);
 
-    log_msg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_limit_snow: %d",
-             pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
+    LogMsg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_limit_snow: %d",
+            pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
 }
 
-static void
-MenuCB([[maybe_unused]] void *menu_ref, void *item_ref)
-{
-    int *pref = (int *)item_ref;
+static void MenuCB([[maybe_unused]] void* menu_ref, void* item_ref) {
+    int* pref = (int*)item_ref;
 
     int item;
     if (pref == &pref_override) {
@@ -139,7 +133,7 @@ MenuCB([[maybe_unused]] void *menu_ref, void *item_ref)
         item = no_rwy_ice_item;
     } else if (pref == &pref_historical) {
         item = historical_item;
-        loop_cnt = 0;   // reload snow
+        loop_cnt = 0;  // reload snow
     } else if (pref == &pref_autoupdate) {
         item = autoupdate_item;
     } else if (pref == &pref_limit_snow) {
@@ -147,51 +141,47 @@ MenuCB([[maybe_unused]] void *menu_ref, void *item_ref)
     } else
         return;
 
-    *pref = ! *pref;
+    *pref = !*pref;
     XPLMCheckMenuItem(xas_menu, item, *pref ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 }
 
 // private drefs need delayed initialization
-static bool
-InitPrivateDrefs()
-{
+static bool InitPrivateDrefs() {
     static bool drefs_inited;
 
-	if (! drefs_inited) {
+    if (!drefs_inited) {
         drefs_inited = true;
-		bool success = true;
-		snow_dr = XPLMFindDataRef("sim/private/controls/wxr/snow_now");
-		success = success && (snow_dr != NULL);
+        bool success = true;
+        snow_dr = XPLMFindDataRef("sim/private/controls/wxr/snow_now");
+        success = success && (snow_dr != NULL);
 
-		ice_dr = XPLMFindDataRef("sim/private/controls/wxr/ice_now");
-		success = success && (ice_dr != NULL);
+        ice_dr = XPLMFindDataRef("sim/private/controls/wxr/ice_now");
+        success = success && (ice_dr != NULL);
 
-		rwy_snow_dr = XPLMFindDataRef("sim/private/controls/twxr/snow_area_width");
-		success = success && (rwy_snow_dr != NULL);
+        rwy_snow_dr = XPLMFindDataRef("sim/private/controls/twxr/snow_area_width");
+        success = success && (rwy_snow_dr != NULL);
 
-		if (!success) {
-			log_msg("Could not map required private datarefs");
-			return false;
-		}
-	}
+        if (!success) {
+            LogMsg("Could not map required private datarefs");
+            return false;
+        }
+    }
 
-	return true;
+    return true;
 }
 
-static float
-FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
-             [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
-             [[maybe_unused]] void *inRefcon)
-{
+static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
+                          [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
+                          [[maybe_unused]] void* inRefcon) {
     static float snow_depth, snow_depth_n, snow_now, rwy_snow, ice_now, alpha;
     static bool legacy_airport_range;
 
     if (loop_cnt == 0) {
         loop_cnt++;
-        log_msg("Flightloop (re)starting, kicking off");
+        LogMsg("Flightloop (re)starting, kicking off");
 
         if (!InitPrivateDrefs())
-            return 0; // Bye, if we don't have them by now we will never get them
+            return 0;  // Bye, if we don't have them by now we will never get them
 
         if (!pref_historical)
             StartAsyncDownload(true, 0, 0, 0);
@@ -217,7 +207,7 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
 
     loop_cnt++;
     if (snod_map == nullptr) {
-        log_msg("... waiting for snow map");
+        LogMsg("... waiting for snow map");
         return 1.0f;
     }
 
@@ -237,12 +227,12 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
             auto [is_water, have_nl, nl_lon, nl_lat] = coast_map.nearest_land(lon, lat);
             if (is_water && have_nl) {
                 float snow_depth_n1 = snod_map->get(nl_lon, nl_lat);
-                //log_msg("nl snow: %0.2f", snow_depth_n1);
+                // LogMsg("nl snow: %0.2f", snow_depth_n1);
                 snow_depth_n = std::max(snow_depth_n, snow_depth_n1);
             }
         }
 
-        static constexpr float decay_time = 10.0f;   // s
+        static constexpr float decay_time = 10.0f;  // s
         alpha = XPLMGetDataf(framerate_period_dr) / decay_time;
 
         // If we have no accumulated snow leave the datarefs alone and
@@ -280,12 +270,9 @@ FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
     return -1;
 }
 
-
 // =========================== plugin entry points ===============================================
-PLUGIN_API int
-XPluginStart(char *out_name, char *out_sig, char *out_desc)
-{
-    log_msg("Startup " VERSION);
+PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
+    LogMsg("Startup " VERSION);
 
     strcpy(out_name, "X Airline Snow - " VERSION);
     strcpy(out_sig, "com.github.xairline.xa-snow");
@@ -297,10 +284,10 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
 
     char buffer[2048];
     XPLMGetSystemPath(buffer);
-    xp_dir = std::string(buffer);   // has trailing slash
+    xp_dir = std::string(buffer);  // has trailing slash
     plugin_dir = xp_dir + "Resources/plugins/XA-snow";
     output_dir = xp_dir + "Output/snow";
-	pref_path = xp_dir + "Output/preferences/xa-snow.prf";
+    pref_path = xp_dir + "Output/preferences/xa-snow.prf";
     std::filesystem::create_directory(output_dir);
 
     pref_override = pref_historical = pref_autoupdate = false;
@@ -315,7 +302,7 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
     plane_y_agl_dr = XPLMFindDataRef("sim/flightmodel2/position/y_agl");
 
     weather_mode_dr = XPLMFindDataRef("sim/weather/region/weather_source");
-	rwy_cond_dr = XPLMFindDataRef("sim/weather/region/runway_friction");
+    rwy_cond_dr = XPLMFindDataRef("sim/weather/region/runway_friction");
 
     sys_time_dr = XPLMFindDataRef("sim/time/use_system_time");
     sim_current_month_dr = XPLMFindDataRef("sim/cockpit2/clock_timer/current_month");
@@ -332,14 +319,13 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
 
     // build menues
     XPLMMenuID menu = XPLMFindPluginsMenu();
-    xas_menu = XPLMCreateMenu("X Airline Snow", menu,
-                              XPLMAppendMenuItem(menu, "X Airline Snow", NULL, 0),
-                              MenuCB, NULL);
+    xas_menu =
+        XPLMCreateMenu("X Airline Snow", menu, XPLMAppendMenuItem(menu, "X Airline Snow", NULL, 0), MenuCB, NULL);
 
-	override_item = XPLMAppendMenuItem(xas_menu, "Toggle Override", &pref_override, 0);
-	no_rwy_ice_item = XPLMAppendMenuItem(xas_menu, "Lock Elsa up (ice)", &pref_no_rwy_ice, 0);
-	historical_item = XPLMAppendMenuItem(xas_menu, "Enable Historical Snow", &pref_historical, 0);
-	autoupdate_item = XPLMAppendMenuItem(xas_menu, "Enable Snow Depth Auto Update", &pref_autoupdate, 0);
+    override_item = XPLMAppendMenuItem(xas_menu, "Toggle Override", &pref_override, 0);
+    no_rwy_ice_item = XPLMAppendMenuItem(xas_menu, "Lock Elsa up (ice)", &pref_no_rwy_ice, 0);
+    historical_item = XPLMAppendMenuItem(xas_menu, "Enable Historical Snow", &pref_historical, 0);
+    autoupdate_item = XPLMAppendMenuItem(xas_menu, "Enable Snow Depth Auto Update", &pref_autoupdate, 0);
     limit_snow_item = XPLMAppendMenuItem(xas_menu, "Limit snow for legacy airports", &pref_limit_snow, 0);
 
     XPLMCheckMenuItem(xas_menu, override_item, pref_override ? xplm_Menu_Checked : xplm_Menu_Unchecked);
@@ -350,48 +336,40 @@ XPluginStart(char *out_name, char *out_sig, char *out_desc)
 
     MapLayerStartHook();
 
-    log_msg("XPluginStart done, xp_dir: '%s'", xp_dir.c_str());
+    LogMsg("XPluginStart done, xp_dir: '%s'", xp_dir.c_str());
 
     // ... and off we go
     XPLMRegisterFlightLoopCallback(FlightLoopCb, 2.0, NULL);
     return 1;
 }
 
-PLUGIN_API void
-XPluginStop(void)
-{
+PLUGIN_API void XPluginStop(void) {
     MapLayerStopHook();
 
     // As an async can not be cancelled we have to wait
     // and collect the status. Otherwise X Plane won't shut down.
     while (CheckAsyncDownload()) {
-        log_msg("... waiting for async download to finish");
+        LogMsg("... waiting for async download to finish");
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 }
 
-PLUGIN_API int
-XPluginEnable(void)
-{
+PLUGIN_API int XPluginEnable(void) {
     MapLayerEnableHook();
-    loop_cnt = 0;   // reinit snow download
+    loop_cnt = 0;  // reinit snow download
     return 1;
 }
 
-PLUGIN_API void
-XPluginDisable(void)
-{
+PLUGIN_API void XPluginDisable(void) {
     SavePrefs();
     snod_map = nullptr;
     MapLayerDisableHook();
 }
 
-PLUGIN_API void
-XPluginReceiveMessage([[maybe_unused]] XPLMPluginID in_from, long in_msg, void *in_param)
-{
-    if (((in_msg == XPLM_MSG_PLANE_LOADED && in_param == 0) || (in_msg == XPLM_MSG_SCENERY_LOADED))
-        && pref_autoupdate) {
-        log_msg("Plane/Scenery loaded, reloading snow");
+PLUGIN_API void XPluginReceiveMessage([[maybe_unused]] XPLMPluginID in_from, long in_msg, void* in_param) {
+    if (((in_msg == XPLM_MSG_PLANE_LOADED && in_param == 0) || (in_msg == XPLM_MSG_SCENERY_LOADED)) &&
+        pref_autoupdate) {
+        LogMsg("Plane/Scenery loaded, reloading snow");
         loop_cnt = 0;
     }
 }

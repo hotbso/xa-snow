@@ -46,14 +46,14 @@ LegacyAirportSnowDepth(float snow_depth)		// -> adjusted snow depth, in range of
                 const LLPos& pos = arpt->runways[0].end1;
                 XPLMWorldToLocal(pos.lat, pos.lon, 0, &x, &y, &z);
                 if (xplm_ProbeHitTerrain != XPLMProbeTerrainXYZ(probe_ref, x, y, z, &probeinfo)) {
-                    log_msg("terrain probe failed???");
+                    LogMsg("terrain probe failed???");
                 }
 
                 double dummy, elev;
                 XPLMLocalToWorld(probeinfo.locationX, probeinfo.locationY, probeinfo.locationZ,
                                  &dummy, &dummy, &elev);
                 arpt->elevation = elev;
-                log_msg("elevation of '%s', %0.1f ft", arpt->name.c_str(), arpt->elevation / kF2M);
+                LogMsg("elevation of '%s', %0.1f ft", arpt->name.c_str(), arpt->elevation / kF2M);
             }
 
             float haa = XPLMGetDataf(plane_elevation_dr) - arpt->elevation;
@@ -73,7 +73,7 @@ LegacyAirportSnowDepth(float snow_depth)		// -> adjusted snow depth, in range of
             else
                 snow_depth_n = kArptSnow + height/k200ft * (kSnowLim200ft - kArptSnow);
 
-            //log_msg("haa: %.0f, ref_haa: %0.f, dist to '%s', %.0f m, snow_depth in: %0.2f, out: %0.2f",
+            //LogMsg("haa: %.0f, ref_haa: %0.f, dist to '%s', %.0f m, snow_depth in: %0.2f, out: %0.2f",
             //        haa, ref_haa, arpt->name.c_str(), dist, snow_depth, snow_depth_n);
             return std::make_tuple(snow_depth_n, true);
         }

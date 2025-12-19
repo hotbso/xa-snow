@@ -40,7 +40,7 @@ DepthMap::DepthMap(float resolution)
     height_ = (int)(180.0f / resolution_) + 1;
     val_ = std::make_unique<float[]>(height_ * width_);
     extended_snow_ = std::make_unique<bool[]>(height_ * width_);
-    log_msg("DepthMap created: %d, width %d, height: %d", seqno_, width_, height_);
+    LogMsg("DepthMap created: %d, width %d, height: %d", seqno_, width_, height_);
 }
 
 int
@@ -85,7 +85,7 @@ DepthMap::get(float lon, float lat) const
     float s = lon - i_lon;
     float t = lat - i_lat;
 
-    //log_msg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
+    //LogMsg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
     float v00 = val_[map_idx(i_lon, i_lat)];
     float v10 = val_[map_idx(i_lon + 1, i_lat)];
     float v01 = val_[map_idx(i_lon, i_lat + 1)];
@@ -98,7 +98,7 @@ DepthMap::get(float lon, float lat) const
     float p11 = s * t;
 
     float v = v00 * p00 + v10 * p10 + v01 * p01 + v11 * p11;
-	//log_msg("vij: %f, %f, %f, %f; v: %f", v00, v10, v01, v11, v)
+	//LogMsg("vij: %f, %f, %f, %f; v: %f", v00, v10, v01, v11, v)
     return v;
 }
 
@@ -121,7 +121,7 @@ DepthMap::is_extended_snow(float lon, float lat) const
     int i_lon = lon;
     int i_lat = lat;
 
-    //log_msg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
+    //LogMsg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
     bool es00 = extended_snow_[map_idx(i_lon, i_lat)];
     bool es10 = extended_snow_[map_idx(i_lon + 1, i_lat)];
     bool es01 = extended_snow_[map_idx(i_lon, i_lat + 1)];
@@ -134,7 +134,7 @@ DepthMap::load_csv(const char *csv_name)
 {
     std::ifstream file(csv_name);
     if (!file.is_open()) {
-        log_msg("Error opening file: %s", csv_name);
+        LogMsg("Error opening file: %s", csv_name);
         return;
     }
 
@@ -148,7 +148,7 @@ DepthMap::load_csv(const char *csv_name)
     while (std::getline(file, line)) {
         float lat, lon, value;
         if (3 != sscanf(line.c_str(), "%f,%f,%f", &lon, &lat, &value)) {
-            log_msg("invalid csv line: '%s'", line.c_str());
+            LogMsg("invalid csv line: '%s'", line.c_str());
             continue;
         }
 
@@ -160,7 +160,7 @@ DepthMap::load_csv(const char *csv_name)
         int y = std::lroundf((lat + 90.0f) / resolution_);  // Adjust for negative latitudes
 
         if (x < 0 || x >= width_ || y < 0 || y >= height_) {
-            log_msg("invalid csv line: '%s'", line.c_str());
+            LogMsg("invalid csv line: '%s'", line.c_str());
             continue;
         }
 
@@ -168,7 +168,7 @@ DepthMap::load_csv(const char *csv_name)
         counter++;
     }
 
-    log_msg("Loaded %d lines from CSV file '%s'", counter, csv_name);
+    LogMsg("Loaded %d lines from CSV file '%s'", counter, csv_name);
 
     // use multiple passes for snow extension, e.g. for fjords, islands close to coast, ...
     extend_coastal_snow();
@@ -213,7 +213,7 @@ DepthMap::extend_coastal_snow()
 
                 static constexpr float decay = 0.8f; // snow depth decay per step
                 if (inland_dist > 0) {
-					//log_msg("Inland snow detected for (%d, %d) at dist %d, sd: %0.3f %0.3f",
+					//LogMsg("Inland snow detected for (%d, %d) at dist %d, sd: %0.3f %0.3f",
 					//		  i, j, inland_dist, sd, inland_sd)
 
 					// use exponential decay law from inland point to coast line point
@@ -245,5 +245,5 @@ DepthMap::extend_coastal_snow()
         }
     }
 
-    log_msg("Extended coastal snow on %d grid points", n_extend);
+    LogMsg("Extended coastal snow on %d grid points", n_extend);
 }

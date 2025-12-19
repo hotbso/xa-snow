@@ -38,7 +38,7 @@ class DepthMap {
 
  public:
     DepthMap(float resolution);     // in fractions of 1° e.g. 0.25
-    ~DepthMap() { log_msg("DepthMap destroyed: %d", seqno_); }
+    ~DepthMap() { LogMsg("DepthMap destroyed: %d", seqno_); }
     float get(float lon, float lat) const;
     bool is_extended_snow(float lon, float lat) const;
     void load_csv(const char *csv_name);

@@ -33,7 +33,7 @@ SceneryPacks::SceneryPacks(const std::string& xp_dir)
 
     std::ifstream scpi(scpi_name);
     if (scpi.fail()) {
-        log_msg("Can't open '%s'", scpi_name.c_str());
+        LogMsg("Can't open '%s'", scpi_name.c_str());
         return;
     }
 
@@ -91,7 +91,7 @@ ParseAptDat(const std::string& fn, Airport& arpt)
     if (apt.fail())
         return false;
 
-    log_msg("Processing '%s'", fn.c_str());
+    LogMsg("Processing '%s'", fn.c_str());
 
     std::string line;
     line.reserve(2000);          // can be quite long
@@ -103,7 +103,7 @@ ParseAptDat(const std::string& fn, Airport& arpt)
 
 		//1    681 0 0 ENGM Oslo Gardermoen
         if (line.find("1 ") == 0) {
-			//log_msg("%s", line.c_str());
+			//LogMsg("%s", line.c_str());
 			int ofs;
 			sscanf(line.c_str(), "%*d %*d %*d %*d %n", &ofs);
 			if (ofs < (int)line.size())
@@ -122,7 +122,7 @@ ParseAptDat(const std::string& fn, Airport& arpt)
 			if (code != 15)
 				continue;
 
-            //log_msg("%s", line.c_str());
+            //LogMsg("%s", line.c_str());
 			Runway rwy;
 			rwy.name = words[8];
 			rwy.end1.lat = std::atof(words[9].c_str());
@@ -235,7 +235,7 @@ CollectAirports(const std::string& xp_dir)
 {
     SceneryPacks scp(xp_dir);
     if (scp.sc_paths.size() == 0) {
-        log_msg("Can't collect scenery_packs.ini");
+        LogMsg("Can't collect scenery_packs.ini");
         return false;
     }
 
@@ -252,12 +252,12 @@ CollectAirports(const std::string& xp_dir)
 	}
 
     for (auto & arpt : airports) {
-        log_msg("%s", arpt->name.c_str());
+        LogMsg("%s", arpt->name.c_str());
         std::vector<Vec2> rwy_ends;
 
         LLPos base = arpt->runways[0].end1;	// pick arbitrary base for circle computation
         for (auto & rw : arpt->runways) {
-            log_msg("  rw: %-3s, end1: (%0.4f, %0.4f), end2: (%0.4f, %0.4f)",
+            LogMsg("  rw: %-3s, end1: (%0.4f, %0.4f), end2: (%0.4f, %0.4f)",
                     rw.name.c_str(), rw.end1.lat, rw.end1.lon, rw.end2.lat, rw.end2.lon);
             rwy_ends.push_back(rw.end1 - base);
             rwy_ends.push_back(rw.end2 - base);
@@ -271,7 +271,7 @@ CollectAirports(const std::string& xp_dir)
 
         arpt->mec_center = base + c.c;
         arpt->mec_radius = c.r;
-        log_msg("Center: (%0.4f, %0.4f), r = %0.1f",
+        LogMsg("Center: (%0.4f, %0.4f), r = %0.1f",
                 arpt->mec_center.lat, arpt->mec_center.lon, arpt->mec_radius);
     }
 
@@ -283,7 +283,7 @@ CollectAirports(const std::string& xp_dir)
 int main()
 {
 	bool res = CollectAirports("e:/X-Plane-12-test");
-	log_msg("res: %d", res);
+	LogMsg("res: %d", res);
 	return 0;
 }
 #endif

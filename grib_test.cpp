@@ -31,6 +31,8 @@
 #include "xa-snow.h"
 #include "coast_map.h"
 
+const char *log_msg_prefix = "gt: ";
+
 std::string xp_dir;
 std::string plugin_dir;
 std::string output_dir;
@@ -39,7 +41,7 @@ static void
 flightloop_emul()
 {
     while (CheckAsyncDownload()) {
-        log_msg("... waiting for async download");
+        LogMsg("... waiting for async download");
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
@@ -49,7 +51,7 @@ static void
 probe_nearest_land(float lat, float lon)
 {
    auto [is_water, have_nl, nl_lon, nl_lat] = coast_map.nearest_land(lon, lat);
-   log_msg("probe_nl: ll %10.5f,%10.5f, is_water: %d, have_nl: %d, nl_ll: %10.5f,%10.5f",
+   LogMsg("probe_nl: ll %10.5f,%10.5f, is_water: %d, have_nl: %d, nl_ll: %10.5f,%10.5f",
            lat, lon, is_water, have_nl, nl_lat, nl_lon);
 
 }

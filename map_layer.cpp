@@ -72,14 +72,14 @@ static std::unique_ptr<MapTexture> map_tex;
 MapTexture::MapTexture()
 {
     XPLMGenerateTextureNumbers((int *)&tex_id_, 1);
-    log_msg("MapTexture created, tex_id_: %d", tex_id_);
+    LogMsg("MapTexture created, tex_id_: %d", tex_id_);
 }
 
 MapTexture::~MapTexture()
 {
     XPLMBindTexture2d(tex_id_, 0);
     glDeleteTextures(1, &tex_id_);
-    log_msg("MapTexture destroyed, tex_id_: %d", tex_id_);
+    LogMsg("MapTexture destroyed, tex_id_: %d", tex_id_);
 }
 
 void
@@ -101,9 +101,9 @@ MapTexture::set_bounds(const float *ltrb, XPLMMapProjectionID projection)
     right_lon_ = rb_lon;
     bottom_lat_ = rb_lat;
 
-    log_msg("map_bounds: lon: (%0.3f, %0.3f), lat: (%0.3f, %0.3f)",
+    LogMsg("map_bounds: lon: (%0.3f, %0.3f), lat: (%0.3f, %0.3f)",
             left_lon_, right_lon_, bottom_lat_, top_lat_);
-    log_msg("map_bounds: x: (%0.2f, %0.2f), y: (%0.2f, %0.2f)",
+    LogMsg("map_bounds: x: (%0.2f, %0.2f), y: (%0.2f, %0.2f)",
             left_x_, right_x_, bottom_y_, top_y_);
 }
 
@@ -127,7 +127,7 @@ MapTexture::check_image()
         width = (right_lon_ - left_lon_) / dll;
     } else {
         // dateline
-        log_msg("crossing dateline NYI");
+        LogMsg("crossing dateline NYI");
         return false;
     }
 
@@ -141,7 +141,7 @@ MapTexture::check_image()
         float lon = left_lon_;
         for (int i = 0; i < width; i++) {
             float sd = snod_map->get(lon, lat);
-            //log_msg("(%d, %d), sd: %0.3f", i, j, sd);
+            //LogMsg("(%d, %d), sd: %0.3f", i, j, sd);
 
             bool is_coast = false;
             if (debug_colors) {
@@ -168,7 +168,7 @@ MapTexture::check_image()
 
                 if (is_coast)
                     pixel = RGBA(0, 255, 0);
-                //log_msg("pix_idx: %d, pixel: %08x", pix_idx, pixel);
+                //LogMsg("pix_idx: %d, pixel: %08x", pix_idx, pixel);
                 data[pix_idx] = pixel;
             }
             lon += dll;
@@ -188,12 +188,12 @@ MapTexture::check_image()
 
     GLenum err;
     while((err = glGetError()) != GL_NO_ERROR) {
-        log_msg("Gl error %d", err);
+        LogMsg("Gl error %d", err);
     }
 
     valid_ = true;
     snod_seqno_ = snod_map->seqno();
-    log_msg("texture created, width: %d, height: %d", width, height);
+    LogMsg("texture created, width: %d, height: %d", width, height);
     return true;
 }
 
@@ -237,7 +237,7 @@ MapTexture::draw(const float *ltrb)
 
     GLenum err;
     while((err = glGetError()) != GL_NO_ERROR) {
-        log_msg("Gl error %d", err);
+        LogMsg("Gl error %d", err);
     }
 }
 
@@ -271,7 +271,7 @@ static void
 CreateMapLayer(const char *mapIdentifier, [[maybe_unused]] void *refcon)
 {
 	if((NULL == map_layer) && (0 == strcmp(mapIdentifier, XPLM_MAP_USER_INTERFACE))) {
-        log_msg("creating map layer");
+        LogMsg("creating map layer");
 		XPLMCreateMapLayer_t params;
 		params.structSize = sizeof(XPLMCreateMapLayer_t);
 		params.mapToCreateLayerIn = XPLM_MAP_USER_INTERFACE;
