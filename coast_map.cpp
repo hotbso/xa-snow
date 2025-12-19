@@ -133,7 +133,7 @@ CoastMap::nearest_land(float lon, float lat) const
 
     int steps = (v & kItemMask);
     int d = v >> kDirShift;
-    //log_msg("dir: %d, steps: %d", d, steps);
+    //LogMsg("dir: %d, steps: %d", d, steps);
     assert(0 <= d && d < 8);
 
     lat = std::clamp(lat + steps * dir_y[d] * resolution_, -85.0f, 85.0f);
@@ -171,7 +171,7 @@ CoastMap::load(const std::string& dir)
     std::string filename = dir + "/ESACCI-LC-L4-WB-Ocean-Map-150m-P13Y-2000-v4.0.png";
     FILE *fp = fopen(filename.c_str(), "rb");
     if (fp == nullptr) {
-        log_msg("Can't open file '%s'", filename.c_str());
+        LogMsg("Can't open file '%s'", filename.c_str());
         return false;
     }
 
@@ -193,7 +193,7 @@ CoastMap::load(const std::string& dir)
     struct spng_ihdr ihdr;
     int ret = spng_get_ihdr(ctx, &ihdr);
     if (ret) {
-        log_msg("spng_get_ihdr() error: %s\n", spng_strerror(ret));
+        LogMsg("spng_get_ihdr() error: %s\n", spng_strerror(ret));
         fclose(fp);
         spng_ctx_free(ctx);
         return false;
@@ -204,17 +204,17 @@ CoastMap::load(const std::string& dir)
     int color_type = ihdr.color_type;
     int bit_depth = ihdr.bit_depth;
 
-    log_msg("w: %d, h: %d, color_type: %d, bit_depth: %d", width_, height_, color_type, bit_depth);
+    LogMsg("w: %d, h: %d, color_type: %d, bit_depth: %d", width_, height_, color_type, bit_depth);
 
     resolution_ = 360.0f / width_;
     if ((resolution_ != 180.0f / height_) || bit_depth != 8) {
-        log_msg("Invalid map");
+        LogMsg("Invalid map");
         fclose(fp);
         spng_ctx_free(ctx);
         return false;
     }
 
-    log_msg("Decoded: '%s', %s", filename.c_str(), "PNG");
+    LogMsg("Decoded: '%s', %s", filename.c_str(), "PNG");
 
     auto img = std::make_unique<uint32_t[]>(height_ * width_);
     ret = spng_decode_image(ctx, img.get(), sizeof(uint32_t) * height_ * width_, SPNG_FMT_RGBA8, 0);
@@ -222,7 +222,7 @@ CoastMap::load(const std::string& dir)
     spng_ctx_free(ctx);
 
     if (ret) {
-        log_msg("spng_decode_image() error: %s\n", spng_strerror(ret));
+        LogMsg("spng_decode_image() error: %s\n", spng_strerror(ret));
         return false;
     }
 

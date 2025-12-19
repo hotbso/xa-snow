@@ -29,13 +29,11 @@
 #include <numbers>
 #include <memory>
 
-#define XPLM200
-#define XPLM210
-#define XPLM300
-#define XPLM301
-
 #include "XPLMDataAccess.h"
 #include "XPLMScenery.h"
+
+#include "log_msg.h"
+#include "http_get.h"
 
 static constexpr float kD2R = std::numbers::pi/180.0;
 static constexpr float kLat2m = 111120;                 // 1° lat in m
@@ -51,7 +49,6 @@ extern std::string plugin_dir;
 extern std::string output_dir;
 
 // functions
-extern "C" void log_msg(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 extern "C" bool HttpGet(const char *url, FILE *f, int timeout);
 extern int sub_exec(const std::string& command);
 

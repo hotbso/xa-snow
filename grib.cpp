@@ -27,6 +27,7 @@
 #include <mutex>
 #include <future>
 #include <chrono>
+#include <fstream>
 #include <filesystem>
 #include <stdexcept>
 
@@ -63,7 +64,7 @@ GetDownloadUrl(bool sys_time, const std::tm utime_utc)
 
     char buffer[1000];
     std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &ctime_utc);
-    log_msg("adjusted utime_utc: %s", buffer);
+    LogMsg("adjusted utime_utc: %s", buffer);
 
     const static std::array<int, 4> cycles = {0, 6, 12, 18};
     int cycle = 0;
@@ -85,7 +86,7 @@ GetDownloadUrl(bool sys_time, const std::tm utime_utc)
     if (sys_time) {
         snprintf(buffer, sizeof(buffer), "gfs.t%02dz.pgrb2.0p25.f0%02d", cycle, forecast);
         std::string filename(buffer);
-        log_msg("NOAA Filename: '%s', %d, %d", filename.c_str(), cycle, forecast);
+        LogMsg("NOAA Filename: '%s', %d, %d", filename.c_str(), cycle, forecast);
 
         snprintf(buffer, sizeof(buffer), "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?dir=%%2Fgfs.%s%%2F%02d%%2Fatmos&file=%s&var_SNOD=on&all_lev=on", cycleDate.c_str(), cycle, filename.c_str());
         return {buffer, ctime_utc, cycle};
@@ -93,7 +94,7 @@ GetDownloadUrl(bool sys_time, const std::tm utime_utc)
         forecast = 6; // TODO: for now
         snprintf(buffer, sizeof(buffer), "gfs.0p25.%s%02d.f0%02d.grib2", cycleDate.c_str(), cycle, forecast);
         std::string filename(buffer);
-        log_msg("GITHUB Filename: '%s', %d, %d", filename.c_str(), cycle, forecast);
+        LogMsg("GITHUB Filename: '%s', %d, %d", filename.c_str(), cycle, forecast);
 
         snprintf(buffer, sizeof(buffer), "https://github.com/xairline/weather-data/releases/download/daily/%s", filename.c_str());
         return {buffer, ctime_utc, cycle};
@@ -103,7 +104,7 @@ GetDownloadUrl(bool sys_time, const std::tm utime_utc)
 static std::string
 DownloadGribFile(bool sys_time, int month, int day, int hour)
 {
-    log_msg("downloadGribFile: Using system time: %d, month: %d, day: %d, hour: %d", sys_time, month, day, hour);
+    LogMsg("downloadGribFile: Using system time: %d, month: %d, day: %d, hour: %d", sys_time, month, day, hour);
 
     std::time_t now = std::time(nullptr);
     std::tm now_tm = *std::localtime(&now);
@@ -138,7 +139,7 @@ DownloadGribFile(bool sys_time, int month, int day, int hour)
             provided_tm.tm_year = year;
             provided_time = std::mktime(&provided_tm);
         } else {
-            log_msg("The provided time is within the last 24 hours. Using system time.");
+            LogMsg("The provided time is within the last 24 hours. Using system time.");
             sys_time = true;
             provided_time = now;
         }
@@ -148,7 +149,7 @@ DownloadGribFile(bool sys_time, int month, int day, int hour)
     auto ptime_utc_tm = *std::gmtime(&provided_time);
     char buffer[500];
     strftime(buffer, sizeof(buffer), "%Y-%m-%d-%H:%M:%S", &ptime_utc_tm);
-    log_msg("provided time (UTC): %s", buffer);
+    LogMsg("provided time (UTC): %s", buffer);
 
     auto [url, ctime_utc_tm, cycle] = GetDownloadUrl(sys_time, ptime_utc_tm);
 
@@ -157,25 +158,28 @@ DownloadGribFile(bool sys_time, int month, int day, int hour)
     char fn_buffer[500];
     snprintf(fn_buffer, sizeof(fn_buffer), "%s/%s_%d_noaa.grib2", output_dir.c_str(), buffer, cycle);
     std::string grib_file_path = fn_buffer;
-    log_msg("GRIB file path: '%s'", grib_file_path.c_str());
+    LogMsg("GRIB file path: '%s'", grib_file_path.c_str());
 
     // if file does not exist, download
     if (!std::filesystem::exists(grib_file_path)) {
-        log_msg("Downloading GRIB file from '%s'", url.c_str());
+        LogMsg("Downloading GRIB file from '%s'", url.c_str());
 
-        FILE *out = fopen(grib_file_path.c_str(), "wb");
-        if (out == NULL) {
-            log_msg("ERROR: can't create '%s'", grib_file_path.c_str());
-            return "";
-        }
-        if (HttpGet(url.c_str(), out, 10))
-            log_msg("GRIB File downloaded successfully");
-        else {
-            log_msg("GRIB File download failed");
+        std::string data;
+        data.reserve(5 * 1024 * 1024);
+        if (HttpGet(url, data, 10)) {
+            LogMsg("GRIB File downloaded successfully");
+            // save to file
+            std::ofstream out (grib_file_path, std::ios::binary);
+            if (!out) {
+                LogMsg("Error creating GRIB file '%s'", grib_file_path.c_str());
+                return "";
+            }
+            out.write(data.data(), data.size());
+            out.close();
+        } else {
+            LogMsg("GRIB File download failed");
             grib_file_path = "";
         }
-
-        fclose(out);
     }
 
     return grib_file_path;
@@ -189,9 +193,9 @@ RemoveOldGribFiles(std::string file_to_keep)
     std::replace(file_to_keep.begin(), file_to_keep.end(), '\\', '/');
 #endif
 
-    log_msg("Removing old grib files");
-    log_msg("File to keep: %s", file_to_keep.c_str());
-    log_msg("Grib file folder: %s", output_dir.c_str());
+    LogMsg("Removing old grib files");
+    LogMsg("File to keep: %s", file_to_keep.c_str());
+    LogMsg("Grib file folder: %s", output_dir.c_str());
 
     try {
         for (const auto& entry : std::filesystem::directory_iterator(output_dir)) {
@@ -202,11 +206,11 @@ RemoveOldGribFiles(std::string file_to_keep)
             // Check for files with .grib extension
             if (path.find("_noaa.grib2") != std::string::npos && path.find(file_to_keep) == std::string::npos) {
                 std::filesystem::remove(path);
-                log_msg("Removed: %s", path.c_str());
+                LogMsg("Removed: %s", path.c_str());
             }
         }
     } catch (const std::exception& e) {
-        log_msg("Error removing old grib files: %s", e.what());
+        LogMsg("Error removing old grib files: %s", e.what());
     }
 }
 
@@ -238,14 +242,14 @@ DownloadAndProcessGribFile(bool sys_time, int month, int day, int hour)
         std::string cmd = "\"" + plugin_dir + "/bin" + wgrib2
             + "\" -s -lola 0:3600:0.25 -90:1800:0.25 \"" + snod_csv_name + "\" spread \"" + grib_file_path + "\" -match_fs SNOD";
 
-        log_msg("cmd:'%s'", cmd.c_str());
+        LogMsg("cmd:'%s'", cmd.c_str());
         int ex = sub_exec(cmd);
         if (ex != 0)
             return false;
 
         RemoveOldGribFiles(grib_file_path);
     } else
-        log_msg("Using existing snod_csv file '%s'", snod_csv_name);
+        LogMsg("Using existing snod_csv file '%s'", snod_csv_name);
 
     // create new snow map
     new_snod_map = std::make_unique<DepthMap>(0.25f);
@@ -260,14 +264,14 @@ AsyncDownloadAndProcess(bool sys_time, int month, int day, int hour)
     for (int i = 0; i < 3; i++) {
         bool res = DownloadAndProcessGribFile(sys_time, month, day, hour);
         if (!res) {
-            log_msg("Download grib file failed, retry: %d", i);
+            LogMsg("Download grib file failed, retry: %d", i);
         } else {
-            log_msg("Download and process grib file successfully");
+            LogMsg("Download and process grib file successfully");
             return true;
         }
     }
 
-    log_msg("grib download/process: all retry failed");
+    LogMsg("grib download/process: all retry failed");
     return false;
 }
 
@@ -280,7 +284,7 @@ void
 StartAsyncDownload(bool sys_time, int month, int day, int hour)
 {
     if (download_active) {
-        log_msg("Download is already in progress, request ignored");
+        LogMsg("Download is already in progress, request ignored");
     }
 
     download_future = std::async(std::launch::async, AsyncDownloadAndProcess, sys_time, month, day, hour);
@@ -299,7 +303,7 @@ CheckAsyncDownload()
 
         download_active = false;
         bool res = download_future.get();
-        log_msg("CheckAsyncDownload(): Download status: %d", res);
+        LogMsg("CheckAsyncDownload(): Download status: %d", res);
         snod_map = std::move(new_snod_map);     // activate the new map
     }
 

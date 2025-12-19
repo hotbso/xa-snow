@@ -56,7 +56,7 @@ SaveImagePng(uint32_t *data, int width, int height, const std::string& png_path)
     int ret = spng_encode_image(ctx, data, width * height * sizeof(uint32_t),
                                 SPNG_FMT_PNG, SPNG_ENCODE_FINALIZE);
     if (ret) {
-        log_msg("spng_encode_image() error: %s", spng_strerror(ret));
+        LogMsg("spng_encode_image() error: %s", spng_strerror(ret));
         spng_ctx_free(ctx);
         return ret;
     }
@@ -66,24 +66,24 @@ SaveImagePng(uint32_t *data, int width, int height, const std::string& png_path)
     // User owns the buffer after a successful call
 
     if (png_buf == NULL) {
-        log_msg("spng_get_png_buffer() error: %s", spng_strerror(ret));
+        LogMsg("spng_get_png_buffer() error: %s", spng_strerror(ret));
         return ret;
     }
 
-    log_msg("PNG size: %d", (int)png_size);
+    LogMsg("PNG size: %d", (int)png_size);
 
     std::ofstream f(png_path, std::ios::binary);
     if (f.fail()) {
-        log_msg("Can't open '%s'", png_path.c_str());
+        LogMsg("Can't open '%s'", png_path.c_str());
         return 1;
     }
 
     f.write((const char*)png_buf, png_size);
     f.close();
     if (f.fail())
-        log_msg("write to png failed");
+        LogMsg("write to png failed");
     else
-        log_msg("PNG '%s' created", png_path.c_str());
+        LogMsg("PNG '%s' created", png_path.c_str());
 
     free(png_buf);
     spng_ctx_free(ctx);

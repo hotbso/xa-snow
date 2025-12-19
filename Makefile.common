@@ -1,13 +1,14 @@
+VPATH:=.:../xplib
 SDK=SDK
-INCLUDES=-I. -I$(SDK)/CHeaders/XPLM
+INCLUDES=-I. -I../xplib -I$(SDK)/CHeaders/XPLM
 
 # platform independent defines
-DEFINES=-DSPNG_STATIC
+DEFINES=-DSPNG_STATIC -DXPLM200 -DXPLM210 -DXPLM300 -DXPLM301
 
-SOURCES_CPP=airport.cpp coast_map.cpp collect_airports.cpp depth_map.cpp log_msg.cpp sub_exec.cpp \
+SOURCES_CPP=airport.cpp coast_map.cpp collect_airports.cpp depth_map.cpp log_msg.cpp http_get.cpp sub_exec.cpp \
     grib.cpp map_layer.cpp create_snow_png.cpp xa-snow.cpp
 
-SOURCES_C= spng.c http_get.c
+SOURCES_C=spng.c
 
 GRIB_TEST_OBJS=coast_map.o depth_map.o sub_exec.o grib.o create_snow_png.o spng.o http_get.o
 
