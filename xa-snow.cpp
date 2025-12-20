@@ -51,6 +51,8 @@
 
 #include "version.h"
 
+static constexpr int kXP12_4 = 124000;  // X-Plane 12.4.0 internal version number
+
 const char *log_msg_prefix = "xa-snow: ";
 
 std::string xp_dir, plugin_dir, output_dir, pref_path;
@@ -81,23 +83,30 @@ std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth)  // snowNo
     static const std::array<float, 7> snow_now_tab_pre_124= {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
     static const std::array<float, 7> snow_now_tab_post_124={0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
     static const std::array<float, 7> snow_area_width_tab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
-    static const std::array<float, 7> ice_now_tab = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
+    static const std::array<float, 7> ice_now_tab_pre_124 = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
+    static const std::array<float, 7> ice_now_tab_post_124= {0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
 
-    auto const& snow_now_tab = (xp_version >= 124000 ? snow_now_tab_post_124 : snow_now_tab_pre_124);
+    auto const& snow_now_tab = (xp_version >= kXP12_4 ? snow_now_tab_post_124 : snow_now_tab_pre_124);
+    auto const& ice_now_tab = (xp_version >= kXP12_4 ? ice_now_tab_post_124 : ice_now_tab_pre_124);
+
+    float snow_now_value = snow_dr_initial;
+    float ice_now_value = ice_dr_initial;
+    float snow_area_width_value = rwy_snow_dr_initial;
+
+    // high value clamp
     if (depth >= snow_depth_tab.back()) {
+        if (pref_no_rwy_ice)
+            return std::make_tuple(snow_now_tab.back(), rwy_snow_dr_initial, ice_dr_initial);
+
         return std::make_tuple(snow_now_tab.back(), snow_area_width_tab.back(), ice_now_tab.back());
     }
 
-    float snow_now_value = (xp_version >= 124000 ? snow_dr_initial : 1.2f);
-
+    // low value clamp
     if (depth <= snow_depth_tab.front()) {
-        return std::make_tuple(snow_now_value, snow_area_width_tab.front(), ice_now_tab.front());
+        return std::make_tuple(snow_now_value, snow_area_width_value, ice_now_value);
     }
 
     // piecewise linear interpolation
-    float ice_now_value = ice_now_tab.front();
-    float snow_area_width_value = snow_area_width_tab.front();
-
     for (size_t i = 0; i < snow_depth_tab.size() - 1; ++i) {
         float sd0 = snow_depth_tab[i];
         float sd1 = snow_depth_tab[i + 1];
@@ -108,6 +117,11 @@ std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth)  // snowNo
             ice_now_value = ice_now_tab[i] + x * (ice_now_tab[i + 1] - ice_now_tab[i]);
             break;
         }
+    }
+
+    if (pref_no_rwy_ice) {
+        ice_now_value = ice_dr_initial;
+        snow_area_width_value = rwy_snow_dr_initial;
     }
 
     return std::make_tuple(snow_now_value, snow_area_width_value, ice_now_value);
@@ -197,7 +211,7 @@ static bool InitPrivateDrefs() {
 static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
                           [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
                           [[maybe_unused]] void* inRefcon) {
-    static float snow_depth, snow_depth_n, snow_now, rwy_snow, ice_now, alpha;
+    static float snow_depth, snow_depth_n, snow_depth_prev, snow_now, rwy_snow, ice_now, alpha;
     static bool legacy_airport_range;
 
     if (loop_cnt == 0) {
@@ -266,30 +280,32 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
 
         static constexpr float decay_time = 10.0f;  // s
         alpha = XPLMGetDataf(framerate_period_dr) / decay_time;
-
-        // If we have no accumulated snow leave the datarefs alone and
-        // let X-Plane do its weather effect things
-        if ((snow_depth < 0.001f) && pref_override)
-            return -1;
-
         std::tie(snow_now, rwy_snow, ice_now) = SnowDepthToXplaneSnowNow(snow_depth);
     }
 
     snow_depth = alpha * snow_depth_n + (1 - alpha) * snow_depth;
 
-    // If we have no accumulated snow leave the datarefs alone and
+    // If we don't have accumulated snow leave the datarefs alone and
     // let X-Plane do its weather effect things
-    if ((snow_depth < 0.001f) && !pref_override)
-        return -1;
+    if ((snow_depth < 0.001f) && !pref_override) {
+        // catch the transition to 'no snow' and reset datarefs once before leaving
+        // the datarefs alone
+        if (snow_depth_prev >= 0.001f) {
+            LogMsg("Snow depth now zero, resetting datarefs");
+            XPLMSetDataf(snow_dr, snow_dr_initial);
+            XPLMSetDataf(rwy_snow_dr, rwy_snow_dr_initial);
+            XPLMSetDataf(ice_dr, ice_dr_initial);
+        }
 
+        snow_depth_prev = snow_depth;
+        return -1;
+    }
+
+    snow_depth_prev = snow_depth;
     float rwy_cond = XPLMGetDataf(rwy_cond_dr);
 
-    if (pref_no_rwy_ice) {
-        ice_now = 2;
-        // on legacy textures setting this to 0 has the opposite effect
-        rwy_snow = legacy_airport_range ? 0.25f : 0;
+    if (pref_no_rwy_ice)
         rwy_cond = 0.0f;
-    }
 
     XPLMSetDataf(snow_dr, snow_now);
     XPLMSetDataf(rwy_snow_dr, rwy_snow);
@@ -299,6 +315,10 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
         XPLMSetDataf(rwy_cond_dr, rwy_cond);
     }
 
+#if 0
+    LogMsg("Snow depth: %0.2f m, snow_now: %0.3f, rwy_snow: %0.3f, ice_now: %0.3f, rwy_cond: %0.3f",
+            snow_depth, snow_now, rwy_snow, ice_now, rwy_cond);
+#endif
     return -1;
 }
 
