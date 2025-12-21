@@ -337,7 +337,7 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     char buffer[2048];
     XPLMGetSystemPath(buffer);
     xp_dir = std::string(buffer);  // has trailing slash
-    plugin_dir = xp_dir + "Resources/plugins/XA-snow";
+    plugin_dir = xp_dir + "Resources/plugins/xa-snow";
     output_dir = xp_dir + "Output/snow";
     pref_path = xp_dir + "Output/preferences/xa-snow.prf";
     std::filesystem::create_directory(output_dir);

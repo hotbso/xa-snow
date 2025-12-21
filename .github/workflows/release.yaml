@@ -112,31 +112,31 @@ jobs:
           path: ./download
 
       - run: |
-          mkdir ./build/XA-snow
-          mkdir ./build/XA-snow/win_x64
-          mkdir ./build/XA-snow/lin_x64
-          mkdir ./build/XA-snow/mac_x64
+          mkdir ./build/xa-snow
+          mkdir ./build/xa-snow/win_x64
+          mkdir ./build/xa-snow/lin_x64
+          mkdir ./build/xa-snow/mac_x64
           cp ./download/*/*.xpl ./build/.
-          mv ./build/mac.xpl ./build/XA-snow/mac_x64/xa-snow.xpl
-          mv ./build/lin.xpl ./build/XA-snow/lin_x64/xa-snow.xpl
-          mv ./build/win.xpl ./build/XA-snow/win_x64/xa-snow.xpl
-          ls -lR ./build/XA-snow
+          mv ./build/mac.xpl ./build/xa-snow/mac_x64/xa-snow.xpl
+          mv ./build/lin.xpl ./build/xa-snow/lin_x64/xa-snow.xpl
+          mv ./build/win.xpl ./build/xa-snow/win_x64/xa-snow.xpl
+          ls -lR ./build/xa-snow
 
       - run: |
-          cp -r bin ${{ github.workspace }}/build/XA-snow/
+          cp -r bin ${{ github.workspace }}/build/xa-snow/
           TAG=${GITHUB_REF##*/}
-          cp ${{ github.workspace }}/skunkcrafts_updater.cfg ${{ github.workspace }}/build/XA-snow/
-          cp ${{ github.workspace }}/skunkcrafts_updater_beta.cfg ${{ github.workspace }}/build/XA-snow/
-          cp ${{ github.workspace }}/skunkcrafts_updater_blacklist.txt ${{ github.workspace }}/build/XA-snow/
-          cp ${{ github.workspace }}/LICENSE* ${{ github.workspace }}/build/XA-snow/
-          cp ${{ github.workspace }}/ESA-license.txt ${{ github.workspace }}/build/XA-snow/
-          cp ${{ github.workspace }}/ESACCI-LC-L4-WB-Ocean-Map-150m-P13Y-2000-v4.0.png ${{ github.workspace }}/build/XA-snow/
-          sed -i '' "s/REPLACE_ME/${TAG}/g" ${{ github.workspace }}/build/XA-snow/skunkcrafts_updater.cfg
-          sed -i '' "s/REPLACE_ME/${TAG}/g" ${{ github.workspace }}/build/XA-snow/skunkcrafts_updater_beta.cfg
+          cp ${{ github.workspace }}/skunkcrafts_updater.cfg ${{ github.workspace }}/build/xa-snow/
+          cp ${{ github.workspace }}/skunkcrafts_updater_beta.cfg ${{ github.workspace }}/build/xa-snow/
+          cp ${{ github.workspace }}/skunkcrafts_updater_blacklist.txt ${{ github.workspace }}/build/xa-snow/
+          cp ${{ github.workspace }}/LICENSE* ${{ github.workspace }}/build/xa-snow/
+          cp ${{ github.workspace }}/ESA-license.txt ${{ github.workspace }}/build/xa-snow/
+          cp ${{ github.workspace }}/ESACCI-LC-L4-WB-Ocean-Map-150m-P13Y-2000-v4.0.png ${{ github.workspace }}/build/xa-snow/
+          sed -i '' "s/REPLACE_ME/${TAG}/g" ${{ github.workspace }}/build/xa-snow/skunkcrafts_updater.cfg
+          sed -i '' "s/REPLACE_ME/${TAG}/g" ${{ github.workspace }}/build/xa-snow/skunkcrafts_updater_beta.cfg
           root=$(pwd)
-          cd ${{ github.workspace }}/build/ && zip -r xa-snow.zip XA-snow && cd $root
+          cd ${{ github.workspace }}/build/ && zip -r xa-snow.zip xa-snow && cd $root
       - run: |
-          cp -r ${{ github.workspace }}/build/XA-snow/ release/
+          cp -r ${{ github.workspace }}/build/xa-snow/ release/
 
           # create crc32 checksum for all values and write to skunkcrafts_updater_whitelist.txt
           # format is <filename>|<crc32 checksum>
