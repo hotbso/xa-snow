@@ -45,10 +45,9 @@ std::unique_ptr<DepthMap> snod_map;
 // If download_active:
 //  true:  written by the download thread
 //  false: read and written by the main thread
-
-// variable under system control
 std::unique_ptr<DepthMap> new_snod_map;
 
+// variable under system control
 static std::future<bool> download_future;
 
 // in:  user specified time
@@ -165,7 +164,7 @@ DownloadGribFile(bool sys_time, int month, int day, int hour)
         LogMsg("Downloading GRIB file from '%s'", url.c_str());
 
         std::string data;
-        data.reserve(5 * 1024 * 1024);
+        data.reserve(2 * 1024 * 1024);
         if (HttpGet(url, data, 10)) {
             LogMsg("GRIB File downloaded successfully");
             // save to file
