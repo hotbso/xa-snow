@@ -117,9 +117,9 @@ jobs:
           mkdir ./build/XA-snow/lin_x64
           mkdir ./build/XA-snow/mac_x64
           cp ./download/*/*.xpl ./build/.
-          mv ./build/mac.xpl ./build/XA-snow/mac_x64/xa-snow.xpl
-          mv ./build/lin.xpl ./build/XA-snow/lin_x64/xa-snow.xpl
-          mv ./build/win.xpl ./build/XA-snow/win_x64/xa-snow.xpl
+          mv ./build/mac.xpl ./build/XA-snow/mac_x64/XA-snow.xpl
+          mv ./build/lin.xpl ./build/XA-snow/lin_x64/XA-snow.xpl
+          mv ./build/win.xpl ./build/XA-snow/win_x64/XA-snow.xpl
           ls -lR ./build/XA-snow
 
       - run: |
