@@ -68,7 +68,15 @@ static XPLMMenuID xas_menu;
 static int xp_version;
 
 static bool private_drefs_inited;
-static float snow_dr_initial, ice_dr_initial, rwy_snow_dr_initial;
+
+static const std::array<float, 7> snow_depth_tab      = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
+static const std::array<float, 7> snow_now_tab_pre_124= {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
+static const std::array<float, 7> snow_now_tab_post_124={0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
+static const std::array<float, 7> snow_area_width_tab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
+static const std::array<float, 7> ice_now_tab_pre_124 = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
+static const std::array<float, 7> ice_now_tab_post_124= {0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
+
+static float snow_now_0, ice_now_0, snow_area_width_0;    // initial values with no snow
 
 // preferences
 static int pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow;
@@ -79,24 +87,17 @@ static int loop_cnt;
 
 std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth)  // snowNow, snowAreaWidth, iceNow
 {
-    static const std::array<float, 7> snow_depth_tab      = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
-    static const std::array<float, 7> snow_now_tab_pre_124= {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
-    static const std::array<float, 7> snow_now_tab_post_124={0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
-    static const std::array<float, 7> snow_area_width_tab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
-    static const std::array<float, 7> ice_now_tab_pre_124 = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
-    static const std::array<float, 7> ice_now_tab_post_124= {0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
-
     auto const& snow_now_tab = (xp_version >= kXP12_4 ? snow_now_tab_post_124 : snow_now_tab_pre_124);
     auto const& ice_now_tab = (xp_version >= kXP12_4 ? ice_now_tab_post_124 : ice_now_tab_pre_124);
 
-    float snow_now_value = snow_dr_initial;
-    float ice_now_value = ice_dr_initial;
-    float snow_area_width_value = rwy_snow_dr_initial;
+    float snow_now_value = snow_now_0;
+    float ice_now_value = ice_now_0;
+    float snow_area_width_value = snow_area_width_0;
 
     // high value clamp
     if (depth >= snow_depth_tab.back()) {
         if (pref_no_rwy_ice)
-            return std::make_tuple(snow_now_tab.back(), rwy_snow_dr_initial, ice_dr_initial);
+            return std::make_tuple(snow_now_tab.back(), snow_area_width_0, ice_now_0);
 
         return std::make_tuple(snow_now_tab.back(), snow_area_width_tab.back(), ice_now_tab.back());
     }
@@ -120,8 +121,8 @@ std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth)  // snowNo
     }
 
     if (pref_no_rwy_ice) {
-        ice_now_value = ice_dr_initial;
-        snow_area_width_value = rwy_snow_dr_initial;
+        ice_now_value = ice_now_0;
+        snow_area_width_value = snow_area_width_0;
     }
 
     return std::make_tuple(snow_now_value, snow_area_width_value, ice_now_value);
@@ -196,13 +197,6 @@ static bool InitPrivateDrefs() {
             LogMsg("Could not map required private datarefs");
             return false;
         }
-
-        // save initial values for restore on disable
-        snow_dr_initial = XPLMGetDataf(snow_dr);
-        ice_dr_initial = XPLMGetDataf(ice_dr);
-        rwy_snow_dr_initial = XPLMGetDataf(rwy_snow_dr);
-        LogMsg("snow_dr_initial: %f, ice_dr_initial: %f, rwy_snow_dr_initial: %f",
-                snow_dr_initial, ice_dr_initial, rwy_snow_dr_initial);
     }
 
     return true;
@@ -224,9 +218,9 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
         // We may come here after a move to a different airport, so
         // XP 12.4.0+ private datarefs need to be reset
         if (private_drefs_inited) {
-            XPLMSetDataf(snow_dr, snow_dr_initial);
-            XPLMSetDataf(ice_dr, ice_dr_initial);
-            XPLMSetDataf(rwy_snow_dr, rwy_snow_dr_initial);
+            XPLMSetDataf(snow_dr, snow_now_0);
+            XPLMSetDataf(ice_dr, ice_now_0);
+            XPLMSetDataf(rwy_snow_dr, snow_area_width_0);
         }
 
         if (!pref_historical)
@@ -292,9 +286,9 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
         // the datarefs alone
         if (snow_depth_prev >= 0.001f) {
             LogMsg("Snow depth now zero, resetting datarefs");
-            XPLMSetDataf(snow_dr, snow_dr_initial);
-            XPLMSetDataf(rwy_snow_dr, rwy_snow_dr_initial);
-            XPLMSetDataf(ice_dr, ice_dr_initial);
+            XPLMSetDataf(snow_dr, snow_now_0);
+            XPLMSetDataf(rwy_snow_dr, snow_area_width_0);
+            XPLMSetDataf(ice_dr, ice_now_0);
         }
 
         snow_depth_prev = snow_depth;
@@ -394,6 +388,20 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
 
     LogMsg("XPluginStart done, xp_dir: '%s'", xp_dir.c_str());
 
+    // set 0 values for various reset operations
+    if (xp_version >= kXP12_4) {
+        snow_now_0 = 0.0f;
+        ice_now_0 = 0.0f;
+    } else {
+        snow_now_0 = 1.25f;
+        ice_now_0 = 2.0f;
+    }
+
+    snow_area_width_0 =  snow_area_width_tab.front();
+
+    LogMsg("snow_now_0: %f, ice_now_0: %f, snow_area_width_0: %f",
+            snow_now_0, ice_now_0, snow_area_width_0);
+
     // ... and off we go
     XPLMRegisterFlightLoopCallback(FlightLoopCb, 2.0, NULL);
     return 1;
@@ -423,9 +431,9 @@ PLUGIN_API void XPluginDisable(void) {
 
     // XP 12.4.x private datarefs need to be reset on disable
     if (private_drefs_inited) {
-        XPLMSetDataf(snow_dr, snow_dr_initial);
-        XPLMSetDataf(ice_dr, ice_dr_initial);
-        XPLMSetDataf(rwy_snow_dr, rwy_snow_dr_initial);
+        XPLMSetDataf(snow_dr, snow_now_0);
+        XPLMSetDataf(ice_dr, ice_now_0);
+        XPLMSetDataf(rwy_snow_dr, snow_area_width_0);
     }
 }
 
