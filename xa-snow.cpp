@@ -71,7 +71,7 @@ static bool private_drefs_inited;
 
 static const std::array<float, 7> snow_depth_tab      = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
 static const std::array<float, 7> snow_now_tab_pre_124= {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
-static const std::array<float, 7> snow_now_tab_post_124={0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
+static const std::array<float, 7> snow_now_tab_post_124={0.23f, 0.27f, 0.40f, 0.50f, 0.60f, 0.80f, 0.90f};
 static const std::array<float, 7> snow_area_width_tab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
 static const std::array<float, 7> ice_now_tab_pre_124 = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
 static const std::array<float, 7> ice_now_tab_post_124= {0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
