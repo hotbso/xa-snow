@@ -77,6 +77,7 @@ static const std::array<float, 7> ice_now_tab_pre_124 = {2.00f, 2.00f, 2.00f, 2.
 static const std::array<float, 7> ice_now_tab_post_124= {0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
 
 static float snow_now_0, ice_now_0, snow_area_width_0;    // initial values with no snow
+static float snow_depth;                      // current snow depth, exported as dref for debugging
 
 // preferences
 static int pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow;
@@ -205,7 +206,7 @@ static bool InitPrivateDrefs() {
 static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
                           [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
                           [[maybe_unused]] void* inRefcon) {
-    static float snow_depth, snow_depth_n, snow_depth_prev, snow_now, rwy_snow, ice_now, alpha;
+    static float snow_depth_n, snow_depth_prev, snow_now, rwy_snow, ice_now, alpha;
     static bool legacy_airport_range;
 
     if (loop_cnt == 0) {
@@ -338,6 +339,10 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
     return -1;
 }
 
+static float SnowDepthAcc([[maybe_unused]] void* ref) {
+    return snow_depth;
+}
+
 // =========================== plugin entry points ===============================================
 PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     LogMsg("Startup " VERSION);
@@ -407,6 +412,10 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     XPLMCheckMenuItem(xas_menu, limit_snow_item, pref_limit_snow ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 
     MapLayerStartHook();
+
+    // register datarefs
+    XPLMRegisterDataAccessor("xa-snow/snow_depth", xplmType_Float, 0, NULL, NULL, SnowDepthAcc, NULL, NULL, NULL,
+                             NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 
     LogMsg("XPluginStart done, xp_dir: '%s'", xp_dir.c_str());
 
