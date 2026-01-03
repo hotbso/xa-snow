@@ -97,7 +97,7 @@ std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth)  // snowNo
 
     // high value clamp
     if (depth >= snow_depth_tab.back()) {
-        if (pref_no_rwy_ice)
+        if (xp_version < kXP12_4 && pref_no_rwy_ice)
             return std::make_tuple(snow_now_tab.back(), snow_area_width_0, ice_now_0);
 
         return std::make_tuple(snow_now_tab.back(), snow_area_width_tab.back(), ice_now_tab.back());
@@ -121,7 +121,7 @@ std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth)  // snowNo
         }
     }
 
-    if (pref_no_rwy_ice) {
+    if (xp_version < kXP12_4 && pref_no_rwy_ice) {
         ice_now_value = ice_now_0;
         snow_area_width_value = snow_area_width_0;
     }
