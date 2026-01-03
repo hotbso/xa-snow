@@ -296,18 +296,40 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
     }
 
     snow_depth_prev = snow_depth;
+
+    // preserve the past with all its bugs and features
+    if (xp_version < kXP12_4) {
+        float rwy_cond = XPLMGetDataf(rwy_cond_dr);
+
+        if (pref_no_rwy_ice)
+            rwy_cond = 0.0f;
+
+        XPLMSetDataf(snow_dr, snow_now);
+        XPLMSetDataf(rwy_snow_dr, rwy_snow);
+        XPLMSetDataf(ice_dr, ice_now);
+        if (rwy_cond >= 4.0f) {
+            rwy_cond = rwy_cond / 3.0f;
+            XPLMSetDataf(rwy_cond_dr, rwy_cond);
+        }
+        return -1;
+    }
+
+    // XP 12.4.0+ processing
+    // Runway condition (=friction) is controlled by X-Plane's weather evolution (precipitation?)
+    // and not directly by setting the snow/ice-related datarefs.
+    // Therefore in case of no_rwy_ice we just clamp values to some minimal effects.
     float rwy_cond = XPLMGetDataf(rwy_cond_dr);
 
-    if (pref_no_rwy_ice)
-        rwy_cond = 0.0f;
+    if (pref_no_rwy_ice) {
+        ice_now = std::min(ice_now, ice_now_tab_post_124[1]);   // some minimal ice effect
+        rwy_snow = std::min(rwy_snow, snow_area_width_tab[1]); // some minimal snow effect
+        rwy_cond = std::min(rwy_cond, 6.0f);    // 6 = last below snow/ice effect
+    }
 
     XPLMSetDataf(snow_dr, snow_now);
     XPLMSetDataf(rwy_snow_dr, rwy_snow);
     XPLMSetDataf(ice_dr, ice_now);
-    if (rwy_cond >= 4.0f) {
-        rwy_cond = rwy_cond / 3.0f;
-        XPLMSetDataf(rwy_cond_dr, rwy_cond);
-    }
+    XPLMSetDataf(rwy_cond_dr, rwy_cond);
 
 #if 0
     LogMsg("Snow depth: %0.2f m, snow_now: %0.3f, rwy_snow: %0.3f, ice_now: %0.3f, rwy_cond: %0.3f",
