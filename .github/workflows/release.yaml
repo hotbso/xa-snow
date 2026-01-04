@@ -131,6 +131,7 @@ jobs:
           cp ${{ github.workspace }}/LICENSE* ${{ github.workspace }}/build/XA-snow/
           cp ${{ github.workspace }}/ESA-license.txt ${{ github.workspace }}/build/XA-snow/
           cp ${{ github.workspace }}/ESACCI-LC-L4-WB-Ocean-Map-150m-P13Y-2000-v4.0.png ${{ github.workspace }}/build/XA-snow/
+          cp ${{ github.workspace }}/README.html ${{ github.workspace }}/build/XA-snow/
           sed -i '' "s/REPLACE_ME/${TAG}/g" ${{ github.workspace }}/build/XA-snow/skunkcrafts_updater.cfg
           sed -i '' "s/REPLACE_ME/${TAG}/g" ${{ github.workspace }}/build/XA-snow/skunkcrafts_updater_beta.cfg
           root=$(pwd)
