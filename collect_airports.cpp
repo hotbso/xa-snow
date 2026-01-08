@@ -44,7 +44,7 @@ SceneryPacks::SceneryPacks(const std::string& xp_dir) {
         if ((i = line.find('\r')) != std::string::npos)
             line.resize(i);
 
-        if (line.find("SCENERY_PACK ") != 0 || line.find("*GLOBAL_AIRPORTS*") != std::string::npos)
+        if (!line.starts_with("SCENERY_PACK ") || line.find("*GLOBAL_AIRPORTS*") != std::string::npos)
             continue;
 
         // autoortho pretends every file exists but
@@ -97,7 +97,7 @@ static bool ParseAptDat(const std::string& fn, Airport& arpt) {
             line.resize(i);
 
         // 1    681 0 0 ENGM Oslo Gardermoen
-        if (line.find("1 ") == 0) {
+        if (line.starts_with("1 ")) {
             // LogMsg("%s", line.c_str());
             int ofs;
             sscanf(line.c_str(), "%*d %*d %*d %*d %n", &ofs);
@@ -109,15 +109,18 @@ static bool ParseAptDat(const std::string& fn, Airport& arpt) {
 
         // 100 45.11 15 0 0.00 1 3 0 01L  60.18499584  011.07373840 0 148 3 1 0 0 19R  60.21615335  011.09170422 0 140 3
         // 2 1 0
-        if (line.find("100 ") == 0) {
+        if (line.starts_with("100 ")) {
             std::vector<std::string> words;
             SplitWords(line, words);
+            if (words.size() < 20)
+                continue;
 
             int code = std::atoi(words[2].c_str());
             code %= 100;
             if (code != 15)
                 continue;
 
+            // only save type 15 = transparent runway, candidate for not being weather aware
             // LogMsg("%s", line.c_str());
             Runway rwy;
             rwy.name = words[8];
@@ -196,7 +199,7 @@ static Circle Welzl(std::vector<Vec2>& P, std::vector<Vec2> R, int n) {
         return min_circle_trivial(R);
     }
 
-    // Pick a random point randomly
+    // Pick a random point
     int idx = rand() % n;
     Vec2 p = P[idx];
 
@@ -234,6 +237,8 @@ bool CollectAirports(const std::string& xp_dir) {
         else
             arpt.runways.shrink_to_fit();
     }
+
+    LogMsg("Collected %d airports with transparent runways", (int)airports.size());
 
     for (auto& arpt : airports) {
         LogMsg("%s", arpt->name.c_str());
