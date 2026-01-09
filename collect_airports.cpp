@@ -81,15 +81,20 @@ static void SplitWords(std::string str, std::vector<std::string>& words) {
 }
 
 // go through apt.dat and collect runways from 100 lines
-static bool ParseAptDat(const std::string& fn, Airport& arpt) {
+// only type 15 = transparent runway is collected
+// only one airport per apt.dat is processed (which is the 99.99% case)
+static std::unique_ptr<Airport> ParseAptDat(const std::string& fn) {
     std::ifstream apt(fn);
     if (apt.fail())
-        return false;
+        return nullptr;
+
+    auto arpt = std::make_unique<Airport>();
 
     LogMsg("Processing '%s'", fn.c_str());
 
     std::string line;
     line.reserve(2000);  // can be quite long
+    bool have_airport = false;
 
     while (std::getline(apt, line)) {
         size_t i = line.find('\r');
@@ -99,11 +104,16 @@ static bool ParseAptDat(const std::string& fn, Airport& arpt) {
         // 1    681 0 0 ENGM Oslo Gardermoen
         if (line.starts_with("1 ")) {
             // LogMsg("%s", line.c_str());
+            if (have_airport)
+                return arpt;  // only one airport per apt.dat
+
+            have_airport = true;
+
             int ofs;
             sscanf(line.c_str(), "%*d %*d %*d %*d %n", &ofs);
             if (ofs < (int)line.size())
                 line.erase(0, ofs);
-            arpt.name = line;
+            arpt->name = line;
             continue;
         }
 
@@ -128,12 +138,12 @@ static bool ParseAptDat(const std::string& fn, Airport& arpt) {
             rwy.end1.lon = std::atof(words[10].c_str());
             rwy.end2.lat = std::atof(words[18].c_str());
             rwy.end2.lon = std::atof(words[19].c_str());
-            arpt.runways.push_back(rwy);
+            arpt->runways.push_back(rwy);
         }
     }
 
     apt.close();
-    return true;
+    return arpt;
 }
 
 struct Circle {
@@ -229,14 +239,14 @@ bool CollectAirports(const std::string& xp_dir) {
     airports.reserve(50);
 
     for (auto& path : scp.sc_paths) {
-        airports.emplace_back(std::make_unique<Airport>());
-        Airport& arpt = *airports.back();
-        ParseAptDat(path + "Earth nav data/apt.dat", arpt);
-        if (arpt.runways.size() == 0)
-            airports.pop_back();
-        else
-            arpt.runways.shrink_to_fit();
+        auto arpt = ParseAptDat(path + "Earth nav data/apt.dat");
+        if (arpt == nullptr || arpt->runways.size() == 0 || arpt->runways.size() > 10)
+            continue;
+
+        airports.push_back(std::move(arpt));
     }
+
+    airports.shrink_to_fit();
 
     LogMsg("Collected %d airports with transparent runways", (int)airports.size());
 
@@ -263,11 +273,14 @@ bool CollectAirports(const std::string& xp_dir) {
         LogMsg("Center: (%0.4f, %0.4f), r = %0.1f", arpt->mec_center.lat, arpt->mec_center.lon, arpt->mec_radius);
     }
 
-    airports.shrink_to_fit();
     return true;
 }
 
 #ifdef TEST_AIRPORTS
+// g++ -std=c++20  -o collect_airports -DTEST_AIRPORTS -DLOCAL_DEBUGSTRING -DIBM -DXPLM200  -I. -I../xplib -I../SDK/CHeaders/XPLM collect_airports.cpp ../xplib/log_msg.cpp
+
+const char* log_msg_prefix = "collect_airports: ";
+
 int main() {
     bool res = CollectAirports("e:/X-Plane-12-test");
     LogMsg("res: %d", res);
