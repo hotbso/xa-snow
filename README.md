@@ -35,12 +35,13 @@ _Below your plane_ over water there is no snow so you won't see snow.\
 _The plugin tries to overcome this by finding the nearest point on the shoreline and using that (extrapolated) snow depth ._
 
 ### Result
-All in all this gives a pleasing rendition - or not.
+All in all this gives a pleasing rendition as you fly along - or not.
 
+- in an external view the snow is suddenly gone: yes, remember the snow _below your plane_ is depicted everywhere. Just look out of the front window for best results
 - resolution is too coarse grained: you see the same snow everywhere and suddenly it's all gone
 - you overfly an isolated snowy peak: suddenly you have snow everywhere, a few seconds later it's all gone
-- high snowy mountains _very_ close to a _very_ warm shoreline: it's 15° Celsius and you have snow (e.g. Nice and Adriatic Sea)
-- you approach a rough shorline with many fjords: you see snow and suddenly it's all gone
+- high snowy mountains _very_ close to a _very_ warm shoreline: it's 20° Celsius and you have snow (e.g. Nice and Adriatic Sea)
+- you approach a rough shoreline with many fjords: you see snow and suddenly it's all gone
 
 
 ### Installation
