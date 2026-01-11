@@ -2,7 +2,7 @@
 
 Accumulated snow for X-Plane 12 created by https://github.com/zodiac1214 .
 
-The plugin downloads "Accumulated Snow Depth" information from NOAA and depicts it in X-Plane.
+The plugin downloads "Accumulated Snow Depth" information from NOAA and depicts it in X-Plane 12.
 
 ![Image](images/Screenshot2024-01-18at2_15_48PM.png)
 
@@ -13,6 +13,35 @@ Download the latest (non-beta-)release here:   https://github.com/hotbso/xa-snow
 You can see all releases including betas here: https://github.com/hotbso/xa-snow/releases
 
 Support Discord: https://discord.gg/dN9gvFdfAZ
+
+## How it works
+Each 6 hours NOAA creates a worldwide _6-hour forecast_ of accumulated snow based on satellite IR imagery and NOAA's forecast models.
+The plugin retrieves the closest 6 hour old forecast in the hope that this forecast reflects the snow cover _now_.
+The resolution of data is 0.25° lat/lon and that is appr. 10km x 20km at 50° latitude. It's no problem to place a medium sized city within one mesh rectangle.
+
+### Depiction in X-Plane
+X-Plane depicts a snow cover only as 'regional weather' meaning you can only see the same snow cover **everywhere**.
+Xa-snow uses the **snow depth below your plane and not where you are looking to**.\
+_The plugin tries to overcome this by temporal and spatial interpolation._
+
+### Shoreline snow
+Like each camera can be blinded by bright light IR-imagery can be blinded by hot spots.
+Usually water is much warmer than land and that is in particular true at Europe's west coast due to the gulf stream.
+As result raw NOAA data virtually never reports snow for many shorelines.\
+_The plugin tries to overcome this by extrapolation of close inland snow to the shoreline._
+
+### Approaching a shoreline over water
+_Below your plane_ over water there is no snow so you won't see snow.\
+_The plugin tries to overcome this by finding the nearest point on the shoreline and using that (extrapolated) snow depth ._
+
+### Result
+All in all this gives a pleasing rendition - or not.
+
+- resolution is too coarse grained: you see the same snow everywhere and suddenly it's all gone
+- you overfly an isolated snowy peak: suddenly you have snow everywhere, a few seconds later it's all gone
+- high snowy mountains _very_ close to a _very_ warm shoreline: it's 15° Celsius and you have snow (e.g. Nice and Adriatic Sea)
+- you approach a rough shorline with many fjords: you see snow and suddenly it's all gone
+
 
 ### Installation
 Just unpack the zip in your <X Plane>/Resources/plugins directory.
