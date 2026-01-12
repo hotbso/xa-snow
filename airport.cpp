@@ -23,22 +23,19 @@
 #include "XPLMGraphics.h"
 
 static float constexpr kArptLimit = 18000;    // m, ~10 nm
-static float constexpr kArptSnow = 0.07;      // m snow snow on ground
-static float constexpr kSnowLim200ft = 0.11;  // m snow limit if above 200ft AGL
-static float constexpr k200ft = 200 * kF2M;   // m 200ft
+static float constexpr kMecSlope = 0.087f;    // 5° slope towards MEC
 
-static float constexpr kMecSlope = 0.087f;  // 5° slope towards MEC
-
-std::tuple<float, bool> LegacyAirportSnowDepth(
-    float snow_depth)  // -> adjusted snow depth, in range of a legacy airport
+std::tuple<float, bool> LegacyAirportSnowDepth(float lon, float lat, float snow_depth)  // -> adjusted snow depth, in range of a legacy airport
 {
     // look whether we are approaching a legacy airport
-    LLPos pos = {XPLMGetDataf(plane_lon_dr), XPLMGetDataf(plane_lat_dr)};
+    LLPos pos = {lon, lat};
 
     for (auto& arpt : airports) {
         float dist = len(pos - arpt->mec_center);
+        float max_snow_depth = std::min(arpt->max_snow_depth, 0.25f);   // max 25cm snow at legacy airports
+
         if (dist < kArptLimit) {
-            if (snow_depth < kArptSnow)
+            if (snow_depth <= max_snow_depth)
                 return std::make_tuple(snow_depth, true);
 
             if (arpt->elevation == Airport::kNoElevation) {
@@ -60,20 +57,14 @@ std::tuple<float, bool> LegacyAirportSnowDepth(
             float dh = std::max(0.0f, haa - ref_haa);  // a delta above ref slope
             float ref_dist = dist + 10.0f * dh;        // is weighted higher
 
-            // now interpolate down to kArptSnow at the MEC
+            // now interpolate down to max_snow_depth at the MEC
             float a = (ref_dist - arpt->mec_radius) / (kArptLimit - arpt->mec_radius);
             a = std::max(0.0f, std::min(a, 1.0f));
-            float snow_depth_n = kArptSnow + a * (std::min(snow_depth, 0.25f) - kArptSnow);
+            a = std::pow(a, 1.5f);  // slightly progressive
+            float snow_depth_n = max_snow_depth + a * (std::min(snow_depth, 0.25f) - max_snow_depth);
 
-            // keep snow at limit if above 200ft AGL, below height blending comes in
-            float height = XPLMGetDataf(plane_y_agl_dr);
-            if (height > k200ft)
-                snow_depth_n = std::max(snow_depth_n, kSnowLim200ft);
-            else
-                snow_depth_n = kArptSnow + height / k200ft * (kSnowLim200ft - kArptSnow);
-
-            // LogMsg("haa: %.0f, ref_haa: %0.f, dist to '%s', %.0f m, snow_depth in: %0.2f, out: %0.2f",
-            //         haa, ref_haa, arpt->name.c_str(), dist, snow_depth, snow_depth_n);
+            //LogMsg("haa: %.0f, ref_haa: %0.f, dist to '%s', %.0f m, snow_depth in: %0.2f, out: %0.3f",
+            //        haa, ref_haa, arpt->name.c_str(), dist, snow_depth, snow_depth_n);
             return std::make_tuple(snow_depth_n, true);
         }
     }

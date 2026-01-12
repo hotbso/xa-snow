@@ -21,6 +21,7 @@
 
 #include <cstring>
 #include <fstream>
+#include <filesystem>
 
 #include "airport.h"
 
@@ -125,13 +126,6 @@ static std::unique_ptr<Airport> ParseAptDat(const std::string& fn) {
             if (words.size() < 20)
                 continue;
 
-            int code = std::atoi(words[2].c_str());
-            code %= 100;
-            if (code != 15)
-                continue;
-
-            // only save type 15 = transparent runway, candidate for not being weather aware
-            // LogMsg("%s", line.c_str());
             Runway rwy;
             rwy.name = words[8];
             rwy.end1.lat = std::atof(words[9].c_str());
@@ -239,16 +233,40 @@ bool CollectAirports(const std::string& xp_dir) {
     airports.reserve(50);
 
     for (auto& path : scp.sc_paths) {
-        auto arpt = ParseAptDat(path + "Earth nav data/apt.dat");
-        if (arpt == nullptr || arpt->runways.size() == 0 || arpt->runways.size() > 10)
+        std::ifstream cfg(path + "/xa-snow.cfg");
+        if (!cfg.is_open())
             continue;
 
+        LogMsg("Found xa-snow.cfg in '%s'", path.c_str());
+        float max_snow_depth = -1.0f;
+        std::string line;
+        while (std::getline(cfg, line)) {
+            if (line.starts_with("max_snow_depth=")) {
+                max_snow_depth = std::stof(line.substr(15));
+                LogMsg("  max_snow_depth: %0.3f m", max_snow_depth);
+                break;
+            }
+        }
+        cfg.close();
+
+        if (max_snow_depth < 0.0f) {
+            LogMsg("  no valid max_snow_depth found, skipping scenery pack");
+            continue;
+        }
+
+        auto arpt = ParseAptDat(path + "Earth nav data/apt.dat");
+        if (arpt == nullptr || arpt->runways.size() == 0 || arpt->runways.size() > 10) {
+            LogMsg("  no valid  runways found, skipping scenery pack");
+            continue;
+        }
+
+        arpt->max_snow_depth = max_snow_depth;
         airports.push_back(std::move(arpt));
     }
 
     airports.shrink_to_fit();
 
-    LogMsg("Collected %d airports with transparent runways", (int)airports.size());
+    LogMsg("Collected %d legacy airports", (int)airports.size());
 
     for (auto& arpt : airports) {
         LogMsg("%s", arpt->name.c_str());
@@ -270,15 +288,13 @@ bool CollectAirports(const std::string& xp_dir) {
 
         arpt->mec_center = base + c.c;
         arpt->mec_radius = c.r;
-        LogMsg("Center: (%0.4f, %0.4f), r = %0.1f", arpt->mec_center.lat, arpt->mec_center.lon, arpt->mec_radius);
+        LogMsg("    center: (%0.4f, %0.4f), r = %0.1f", arpt->mec_center.lat, arpt->mec_center.lon, arpt->mec_radius);
     }
 
     return true;
 }
 
 #ifdef TEST_AIRPORTS
-// g++ -std=c++20  -o collect_airports -DTEST_AIRPORTS -DLOCAL_DEBUGSTRING -DIBM -DXPLM200  -I. -I../xplib -I../SDK/CHeaders/XPLM collect_airports.cpp ../xplib/log_msg.cpp
-
 const char* log_msg_prefix = "collect_airports: ";
 
 int main() {

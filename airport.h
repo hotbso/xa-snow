@@ -97,14 +97,19 @@ struct Runway {
 };
 
 struct Airport {
-    constexpr static float kNoElevation = -999;  // Not yet determined
-    std::string name;
-    float elevation{kNoElevation};
+	constexpr static float kNoElevation = -999;   // Not yet determined
+
+	std::string name;
+    float elevation{kNoElevation};      // m MSL
     std::vector<Runway> runways;
+	float max_snow_depth;	// m, reduce to this min snow depth within the MEC
 
     // MEC around runways
     LLPos mec_center;
     float mec_radius;
+
+	// -> adjusted snow depth, in range of a legacy airport
+	friend std::tuple<float, bool> LegacyAirportSnowDepth(float snow_depth);
 };
 
 extern std::vector<std::unique_ptr<Airport>> airports;
@@ -117,6 +122,6 @@ struct SceneryPacks {
 extern bool CollectAirports(const std::string& xp_dir);
 
 // -> adjusted snow depth, in range of a legacy airport
-extern std::tuple<float, bool> LegacyAirportSnowDepth(float snow_depth);
+extern std::tuple<float, bool> LegacyAirportSnowDepth(float lon, float lat, float snow_depth);
 
 #endif

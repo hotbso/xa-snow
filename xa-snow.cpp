@@ -80,9 +80,9 @@ static float snow_now_0, ice_now_0, snow_area_width_0;    // initial values with
 static float snow_depth;                      // current snow depth, exported as dref for debugging
 
 // preferences
-static int pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow;
+static int pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate;
 // associated menu ids
-static int override_item, no_rwy_ice_item, historical_item, autoupdate_item, limit_snow_item;
+static int override_item, no_rwy_ice_item, historical_item, autoupdate_item;
 
 static int loop_cnt;
 
@@ -134,12 +134,12 @@ static void SavePrefs() {
     if (NULL == f)
         return;
 
-    fprintf(f, "%d,%d,%d,%d,%d", pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
+    fprintf(f, "%d,%d,%d,%d", pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate);
     fclose(f);
 
     LogMsg("Saving preferences to '%s'", pref_path.c_str());
-    LogMsg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_limit_snow: %d",
-            pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
+    LogMsg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d",
+            pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate);
 }
 
 static void LoadPrefs() {
@@ -149,12 +149,12 @@ static void LoadPrefs() {
 
     LogMsg("Loading preferences from '%s'", pref_path.c_str());
 
-    [[maybe_unused]] int n = fscanf(f, "%i,%i,%i,%i,%i", &pref_override, &pref_no_rwy_ice, &pref_historical,
-                                    &pref_autoupdate, &pref_limit_snow);
+    [[maybe_unused]] int n = fscanf(f, "%i,%i,%i,%i", &pref_override, &pref_no_rwy_ice, &pref_historical,
+                                    &pref_autoupdate);
     fclose(f);
 
-    LogMsg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_limit_snow: %d",
-            pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_limit_snow);
+    LogMsg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d",
+            pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate);
 }
 
 static void MenuCB([[maybe_unused]] void* menu_ref, void* item_ref) {
@@ -170,8 +170,6 @@ static void MenuCB([[maybe_unused]] void* menu_ref, void* item_ref) {
         loop_cnt = 0;  // reload snow
     } else if (pref == &pref_autoupdate) {
         item = autoupdate_item;
-    } else if (pref == &pref_limit_snow) {
-        item = limit_snow_item;
     } else
         return;
 
@@ -258,10 +256,7 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
         float lat = XPLMGetDataf(plane_lat_dr);
         snow_depth_n = snod_map->get(lon, lat);
 
-        if (pref_limit_snow)
-            std::tie<float, bool>(snow_depth_n, legacy_airport_range) = LegacyAirportSnowDepth(snow_depth_n);
-        else
-            legacy_airport_range = false;
+        std::tie<float, bool>(snow_depth_n, legacy_airport_range) = LegacyAirportSnowDepth(lon, lat, snow_depth_n);
 
         if (!legacy_airport_range) {
             // do "over water close to coast" processing
@@ -364,7 +359,7 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     std::filesystem::create_directory(output_dir);
 
     pref_override = pref_historical = pref_autoupdate = false;
-    pref_no_rwy_ice = pref_limit_snow = true;
+    pref_no_rwy_ice = true;
 
     LoadPrefs();
 
@@ -403,13 +398,11 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     no_rwy_ice_item = XPLMAppendMenuItem(xas_menu, "Lock Elsa up (ice)", &pref_no_rwy_ice, 0);
     historical_item = XPLMAppendMenuItem(xas_menu, "Enable Historical Snow", &pref_historical, 0);
     autoupdate_item = XPLMAppendMenuItem(xas_menu, "Enable Snow Depth Auto Update", &pref_autoupdate, 0);
-    limit_snow_item = XPLMAppendMenuItem(xas_menu, "Limit snow for legacy airports", &pref_limit_snow, 0);
 
     XPLMCheckMenuItem(xas_menu, override_item, pref_override ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     XPLMCheckMenuItem(xas_menu, no_rwy_ice_item, pref_no_rwy_ice ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     XPLMCheckMenuItem(xas_menu, historical_item, pref_historical ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     XPLMCheckMenuItem(xas_menu, autoupdate_item, pref_autoupdate ? xplm_Menu_Checked : xplm_Menu_Unchecked);
-    XPLMCheckMenuItem(xas_menu, limit_snow_item, pref_limit_snow ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 
     MapLayerStartHook();
 

@@ -37,8 +37,7 @@ $(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d version.mak | $(DEPDIR)
 $(OBJDIR)/%.o: %.c $(DEPDIR)/%.d version.mak | $(DEPDIR)
 	$(COMPILE.c) -o $@  $<
 
-all: $(TARGET) grib_test.exe
-
+all: $(TARGET) grib_test.exe collect_airports.exe
 
 XPL_DIR=/e/X-Plane-12-test
 
@@ -48,6 +47,9 @@ $(TARGET): $(OBJECTS)
 
 grib_test.exe: grib_test.cpp ../xplib/log_msg.cpp $(GRIB_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp ../xplib/log_msg.cpp $(GRIB_TEST_OBJS) -lwinhttp -lz
+
+collect_airports.exe: collect_airports.cpp ../xplib/log_msg.cpp
+	$(CXX) $(CXXFLAGS) -DTEST_AIRPORTS -DLOCAL_DEBUGSTRING -o $@ collect_airports.cpp ../xplib/log_msg.cpp
 
 $(DEPDIR): ; @mkdir -p $@
 
