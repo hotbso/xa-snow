@@ -31,9 +31,7 @@
 #include "xa-snow.h"
 
 // return relative angle in (-180, 180]
-static inline
-float RA(float angle)
-{
+static inline float RA(float angle) {
     angle = fmodf(angle, 360.0f);
     if (angle > 180.0f)
         return angle - 360.0f;
@@ -56,67 +54,53 @@ float RA(float angle)
 //
 
 struct LLPos {
-	float lon, lat;
+    float lon, lat;
 };
 
 struct Vec2 {
-	float x,y;
+    float x, y;
 };
 
-static inline
-float len(const Vec2& v)
-{
-	return sqrtf(v.x * v.x + v.y * v.y);
+static inline float len(const Vec2& v) {
+    return sqrtf(v.x * v.x + v.y * v.y);
 }
 
 // pos - pos
-static inline
-Vec2 operator-(const LLPos& b, const LLPos& a)
-{
-	return {RA(b.lon -  a.lon) * kLat2m * cosf(a.lat * kD2R),
-		    RA(b.lat -  a.lat) * kLat2m};
+static inline Vec2 operator-(const LLPos& b, const LLPos& a) {
+    return {RA(b.lon - a.lon) * kLat2m * cosf(a.lat * kD2R), RA(b.lat - a.lat) * kLat2m};
 }
 
 // pos + vec
-static inline
-LLPos operator+(const LLPos &p, const Vec2& v)
-{
-	return {RA(p.lon + v.x / (kLat2m * cosf(p.lat * kD2R))),
-			RA(p.lat + v.y / kLat2m)};
+static inline LLPos operator+(const LLPos& p, const Vec2& v) {
+    return {RA(p.lon + v.x / (kLat2m * cosf(p.lat * kD2R))), RA(p.lat + v.y / kLat2m)};
 }
 
 // vec - vec
-static inline
-Vec2 operator-(const Vec2& b, const Vec2& a)
-{
-	return {b.x - a.x, b.y - a.y};
+static inline Vec2 operator-(const Vec2& b, const Vec2& a) {
+    return {b.x - a.x, b.y - a.y};
 }
 
 // vec + vec
-static inline
-Vec2 operator+(const Vec2& a, const Vec2& b)
-{
-	return {a.x + b.x, a.y + b.y};
+static inline Vec2 operator+(const Vec2& a, const Vec2& b) {
+    return {a.x + b.x, a.y + b.y};
 }
 
 // c * vec
-static inline
-Vec2 operator*(float c, const Vec2& v)
-{
-	return {c * v.x, c * v.y};
+static inline Vec2 operator*(float c, const Vec2& v) {
+    return {c * v.x, c * v.y};
 }
 
 struct Runway {
-	std::string name;
-	LLPos end1, end2;
-	float psi;
+    std::string name;
+    LLPos end1, end2;
+    float psi;
 };
 
 struct Airport {
-	constexpr static float kNoElevation = -999;	// Not yet determined
-	std::string name;
-	float elevation{kNoElevation};
-	std::vector<Runway> runways;
+    constexpr static float kNoElevation = -999;  // Not yet determined
+    std::string name;
+    float elevation{kNoElevation};
+    std::vector<Runway> runways;
 
     // MEC around runways
     LLPos mec_center;
