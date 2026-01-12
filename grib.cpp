@@ -95,7 +95,8 @@ GetDownloadUrl(bool sys_time, const std::tm utime_utc)
         std::string filename(buffer);
         LogMsg("GITHUB Filename: '%s', %d, %d", filename.c_str(), cycle, forecast);
 
-        snprintf(buffer, sizeof(buffer), "https://github.com/xairline/weather-data/releases/download/daily/%s", filename.c_str());
+        // gh limits to 1000 assets per release, so we have to split per month
+        snprintf(buffer, sizeof(buffer), "https://github.com/zodiac1214/weather-data/releases/download/daily-%02d/%s", ctime_utc.tm_mon+1, filename.c_str());
         return {buffer, ctime_utc, cycle};
     }
 }
