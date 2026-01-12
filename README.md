@@ -44,7 +44,7 @@ All in all this gives a pleasing rendition as you fly along - or not.
 - you approach a rough shoreline with many fjords: you see snow and suddenly it's all gone
 
 
-### Installation
+## Installation
 Just unpack the zip in your <X Plane>/Resources/plugins directory.
 
 After you've installed it once skunkcrafts updater will take care.
@@ -54,10 +54,10 @@ Download link for skunkcrafts updater:
 
 https://forums.x-plane.org/index.php?/forums/topic/292710-skunkcrafts-updater-standalone-client/
 
-### Usage
+## Usage
 Operation is fully automatic. Nevertheless there are some options to tailor your experience:
 
-![Image](images/Menu.jpg)
+### Menu options
 
 **Toggle Override**\
 xa-snow normally does not download snow data when you use "Manual Weather" in X-Plane in order to not ruin your summer scenery in the
@@ -77,9 +77,14 @@ This may work for you or not.
 When enabled during a longer a flight xa-snow updates snow depth data. As downloading and (one-time) preprocessing of snow data is quite resource heavy use this option with care.\
 As this may lead to stability issues the option may go away in future updates.
 
-**Limit snow for legacy airports**\
-Legacy (= mostly XP11) sceneries do not feature weather aware textures and show way too much snow and therefore make runways and taxiways unusable.\
-Enabling this option smoothly reduces snow depth when you approach such an airport to a limit which make runways and taxiways visible and usable.
+### Limit snow for legacy airports
+Legacy (= mostly XP11) sceneries do not feature weather aware textures and show way too much snow making runways and taxiways unusable.
+Unfortunately there are even different generations of 'legacy' that cannot be detected automatically.
+
+You can limit the maximum amount of snow via a config file per scenery. A sample file ```xa-snow.cfg-sample``` explaining typical configurations is in the the plugin directory.\
+Copy this over into your scenery directory, rename it to ```xa-snow.cfg``` and edit to your liking.
+
+When you approach such an airport snow depth is smoothly reduced to the defined limit value to be reached at appr. the airport boundary.
 
 ## Credits
 zodiac1214 for creating the plugin https://github.com/zodiac1214 \
