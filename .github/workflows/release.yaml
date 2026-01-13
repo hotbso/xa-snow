@@ -66,7 +66,7 @@ jobs:
         shell: bash
         run: |
           set -x
-          sudo apt-get -y install libcurl4-openssl-dev libgl-dev libopengl-dev libopengl0
+          sudo apt-get -y install libcurl4-gnutls-dev libgl-dev libopengl-dev libopengl0
           TAG=${GITHUB_REF##*/}
           if [ ! -z "$TAG" ]; then
             echo "VERSION=$TAG" > version.mak
