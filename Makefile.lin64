@@ -29,7 +29,7 @@ COMPILE.cpp = $(CXX) $(CXXFLAGS) $(DEPFLAGS) -c
 COMPILE.c = $(CC) $(CFLAGS) $(DEPFLAGS) -c
 
 LDFLAGS=-shared -rdynamic -nodefaultlibs -undefined_warning
-LIBS=-lcurl -lz -lOpenGL
+LIBS=-lcurl -lz -lOpenGL -ldl
 
 $(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d version.mak | $(DEPDIR)
 	$(COMPILE.cpp) -o $@  $<

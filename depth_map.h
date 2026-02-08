@@ -23,6 +23,9 @@
 #ifndef _DEPTH_MAP_H_
 #define _DEPTH_MAP_H_
 
+#include <memory>
+#include <string>
+
 class DepthMap {
     static int seqno_base_;
 
@@ -42,6 +45,7 @@ class DepthMap {
     float get(float lon, float lat) const;
     bool is_extended_snow(float lon, float lat) const;
     void load_csv(const char *csv_name);
+    void load_csv_buffer(std::string csv_data, const char *source_name);
     int seqno() const { return seqno_; }
 };
 #endif

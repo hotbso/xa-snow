@@ -26,6 +26,9 @@
 #include <string>
 #include <cmath>
 #include <memory>
+#include <sstream>
+#include <iterator>
+#include <utility>
 
 #include "xa-snow.h"
 #include "depth_map.h"
@@ -138,6 +141,16 @@ DepthMap::load_csv(const char *csv_name)
         return;
     }
 
+    std::string csv_data((std::istreambuf_iterator<char>(file)),
+                         std::istreambuf_iterator<char>());
+    load_csv_buffer(std::move(csv_data), csv_name);
+}
+
+void
+DepthMap::load_csv_buffer(std::string csv_data, const char *source_name)
+{
+    std::istringstream file(std::move(csv_data));
+
     std::string line;
     int counter = 0;
 
@@ -168,7 +181,7 @@ DepthMap::load_csv(const char *csv_name)
         counter++;
     }
 
-    LogMsg("Loaded %d lines from CSV file '%s'", counter, csv_name);
+    LogMsg("Loaded %d lines from CSV source '%s'", counter, source_name);
 
     // use multiple passes for snow extension, e.g. for fjords, islands close to coast, ...
     extend_coastal_snow();

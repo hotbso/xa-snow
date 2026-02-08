@@ -18,11 +18,11 @@ $(shell if [ ! -f $(VH) ]; then mv $(VH).n $(VH); elif cmp -s $(VH).n $(VH); the
 DEFINES=-DSPNG_STATIC -DXPLM200 -DXPLM210 -DXPLM300 -DXPLM301
 
 SOURCES_CPP=airport.cpp coast_map.cpp collect_airports.cpp depth_map.cpp log_msg.cpp http_get.cpp sub_exec.cpp \
-    grib.cpp map_layer.cpp create_snow_png.cpp xa-snow.cpp
+    wgrib2_lib.cpp grib.cpp map_layer.cpp create_snow_png.cpp xa-snow.cpp
 
 SOURCES_C=spng.c
 
-GRIB_TEST_OBJS=coast_map.o depth_map.o sub_exec.o grib.o create_snow_png.o spng.o http_get.o
+GRIB_TEST_OBJS=coast_map.o depth_map.o sub_exec.o wgrib2_lib.o grib.o create_snow_png.o spng.o http_get.o
 
 # the c++ standard to use
 CXXSTD=-std=c++20

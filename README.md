@@ -19,6 +19,16 @@ Each 6 hours NOAA creates a worldwide _6-hour forecast_ of accumulated snow base
 The plugin retrieves the closest 6 hour old forecast in the hope that this forecast reflects the snow cover _now_.
 The resolution of data is 0.25° lat/lon and that is appr. 10km x 20km at 50° latitude. It's no problem to place a medium sized city within one mesh rectangle.
 
+### Wgrib2 runtime dependency
+The plugin now expects a shared `wgrib2` library at runtime (built from the NOAA-EMC `wgrib2` sources).
+It tries these locations in order:
+
+1. `WGRIB2_LIB` environment variable (absolute path recommended)
+2. `bin/libwgrib2.dylib` (macOS), `bin/libwgrib2.so` (Linux), `bin/wgrib2.dll` (Windows)
+3. system library search path (`libwgrib2.*` / `wgrib2.dll`)
+
+`USE_SNOD_CSV` is still supported for debugging and bypasses `wgrib2`.
+
 ### Depiction in X-Plane
 X-Plane depicts a snow cover only as 'regional weather' meaning you can only see the same snow cover **everywhere**.
 Xa-snow uses the **snow depth below your plane and not where you are looking to**.\
@@ -85,4 +95,3 @@ Enabling this option smoothly reduces snow depth when you approach such an airpo
 zodiac1214 for creating the plugin https://github.com/zodiac1214 \
 randy408 for providing libspng https://github.com/randy408/libspng, see LICENSE-libspng\
 go to C++ conversion with help of https://www.codeconvert.ai/golang-to-c++-converter
-

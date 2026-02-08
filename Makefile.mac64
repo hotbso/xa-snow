@@ -44,7 +44,7 @@ CXXFLAGS=$(CXXSTD) $(CFLAGS)
 LNFLAGS+=-dynamiclib -shared -rdynamic -fvisibility=hidden -Wl,-exported_symbols_list -Wl,linkscript.mac
 
 # https://pewpewthespells.com/blog/static_and_dynamic_libraries.html
-LIBS= -F $(SDK)/Libraries/Mac -framework XPLM -framework OpenGL -lcurl -lz
+LIBS= -F $(SDK)/Libraries/Mac -framework XPLM -framework OpenGL -lcurl -lz -ldl
 
 #test:
 #    $(foreach var,$(.VARIABLES),$(info $(var) = $($(var))))
@@ -74,10 +74,10 @@ $(TARGET): $(TARGET_arm) $(TARGET_x86)
 	lipo -create -output $@ $(TARGET_arm) $(TARGET_x86)
 
 $(OBJDIR)/grib_test.mac_arm: $(GRIB_TEST_OBJS_arm) grib_test.cpp ../xplib/log_msg.cpp
-	$(CXXa) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp ../xplib/log_msg.cpp $(GRIB_TEST_OBJS_arm) -lcurl -lz
+	$(CXXa) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp ../xplib/log_msg.cpp $(GRIB_TEST_OBJS_arm) -lcurl -lz -ldl
 
 $(OBJDIR)/grib_test.mac_x86: $(GRIB_TEST_OBJS_x86) grib_test.cpp ../xplib/log_msg.cpp
-	$(CXXx) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp ../xplib/log_msg.cpp $(GRIB_TEST_OBJS_x86) -lcurl -lz
+	$(CXXx) $(CXXFLAGS) -DLOCAL_DEBUGSTRING -o $@ grib_test.cpp ../xplib/log_msg.cpp $(GRIB_TEST_OBJS_x86) -lcurl -lz -ldl
 
 grib_test.mac: $(OBJDIR)/grib_test.mac_arm $(OBJDIR)/grib_test.mac_x86
 	lipo -create -output $@ $(OBJDIR)/grib_test.mac_arm $(OBJDIR)/grib_test.mac_x86

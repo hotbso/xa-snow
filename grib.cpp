@@ -33,6 +33,7 @@
 
 #include "xa-snow.h"
 #include "depth_map.h"
+#include "wgrib2_lib.h"
 
 // A note on async processing:
 // Everything is synchronously fired by the flightloop so we don't need mutexes
@@ -213,15 +214,6 @@ RemoveOldGribFiles(std::string file_to_keep)
     }
 }
 
-static const char *wgrib2 =
-#if IBM == 1
-"/WIN32wgrib2.exe";
-#elif LIN == 1
-"/linux-wgrib2";
-#elif APL == 1
-"/OSX11wgrib2";
-#endif
-
 // Runs async
 static bool
 DownloadAndProcessGribFile(bool sys_time, int month, int day, int hour)
@@ -233,26 +225,19 @@ DownloadAndProcessGribFile(bool sys_time, int month, int day, int hour)
         if (grib_file_path.size() == 0)
             return false;
 
-        snod_csv_name = "snod.csv";
-
-        // export grib file to csv
-        // 0:3600:0.25 means scan longitude from 0, 3600 steps with step 0.25 degree
-        // -90:1800:0.25 means scan latitude from -90, 1800 steps with step 0.25 degree
-        std::string cmd = "\"" + plugin_dir + "/bin" + wgrib2
-            + "\" -s -lola 0:3600:0.25 -90:1800:0.25 \"" + snod_csv_name + "\" spread \"" + grib_file_path + "\" -match_fs SNOD";
-
-        LogMsg("cmd:'%s'", cmd.c_str());
-        int ex = sub_exec(cmd);
-        if (ex != 0)
+        std::string csv_output;
+        if (!Wgrib2ExportSnodCsv(grib_file_path, csv_output))
             return false;
 
+        new_snod_map = std::make_unique<DepthMap>(0.25f);
+        new_snod_map->load_csv_buffer(std::move(csv_output), "wgrib2 lib");
         RemoveOldGribFiles(grib_file_path);
-    } else
+    } else {
         LogMsg("Using existing snod_csv file '%s'", snod_csv_name);
+        new_snod_map = std::make_unique<DepthMap>(0.25f);
+        new_snod_map->load_csv(snod_csv_name);
+    }
 
-    // create new snow map
-    new_snod_map = std::make_unique<DepthMap>(0.25f);
-    new_snod_map->load_csv(snod_csv_name);
     CreateSnowMapPng(*new_snod_map, "snow_depth.png");
     return true;
 }
