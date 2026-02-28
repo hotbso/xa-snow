@@ -253,7 +253,7 @@ DownloadAndProcessGribFile(bool sys_time, int month, int day, int hour)
 
     // create new snow map
     new_snod_map = std::make_unique<DepthMap>(0.25f);
-    new_snod_map->load_csv(snod_csv_name);
+    new_snod_map->LoadCSV(snod_csv_name);
     CreateSnowMapPng(*new_snod_map, "snow_depth.png");
     return true;
 }

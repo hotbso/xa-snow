@@ -33,15 +33,15 @@ class DepthMap {
     std::unique_ptr<float[]> val_;
     std::unique_ptr<bool[]> extended_snow_;
 
-    void extend_coastal_snow();
-    int map_idx(int i_lon, int i_lat) const;    // idx into array
+    void ExtendCoastalSnow();
+    int MapIdx(int i_lon, int i_lat) const;    // idx into array
 
  public:
     DepthMap(float resolution);     // in fractions of 1° e.g. 0.25
     ~DepthMap() { LogMsg("DepthMap destroyed: %d", seqno_); }
-    float get(float lon, float lat) const;
-    bool is_extended_snow(float lon, float lat) const;
-    void load_csv(const char *csv_name);
-    int seqno() const { return seqno_; }
+    float Get(float lon, float lat) const;
+    bool IsExtendedSnow(float lon, float lat) const;
+    void LoadCSV(const char *csv_name);
+    int SeqNo() const { return seqno_; }
 };
 #endif

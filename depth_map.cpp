@@ -32,8 +32,8 @@
 #include "coast_map.h"
 
 int DepthMap::seqno_base_;
-DepthMap::DepthMap(float resolution)
-{
+
+DepthMap::DepthMap(float resolution) {
     seqno_ = ++seqno_base_;
     resolution_ = resolution;
     width_ = 360.0f / resolution_;
@@ -43,9 +43,7 @@ DepthMap::DepthMap(float resolution)
     LogMsg("DepthMap created: %d, width %d, height: %d", seqno_, width_, height_);
 }
 
-int
-DepthMap::map_idx(int i_lon, int i_lat) const
-{
+int DepthMap::MapIdx(int i_lon, int i_lat) const {
     // for lon we wrap around
     if (i_lon >= width_)
         i_lon -= width_;
@@ -63,10 +61,7 @@ DepthMap::map_idx(int i_lon, int i_lat) const
     return idx;
 }
 
-
-float
-DepthMap::get(float lon, float lat) const
-{
+float DepthMap::Get(float lon, float lat) const {
     // our snow world's (lat, lon) is in [0,360) x [0, 180]
     lat += 90.0;
 
@@ -85,27 +80,25 @@ DepthMap::get(float lon, float lat) const
     float s = lon - i_lon;
     float t = lat - i_lat;
 
-    //LogMsg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
-    float v00 = val_[map_idx(i_lon, i_lat)];
-    float v10 = val_[map_idx(i_lon + 1, i_lat)];
-    float v01 = val_[map_idx(i_lon, i_lat + 1)];
-    float v11 = val_[map_idx(i_lon + 1, i_lat + 1)];
+    // LogMsg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
+    float v00 = val_[MapIdx(i_lon, i_lat)];
+    float v10 = val_[MapIdx(i_lon + 1, i_lat)];
+    float v01 = val_[MapIdx(i_lon, i_lat + 1)];
+    float v11 = val_[MapIdx(i_lon + 1, i_lat + 1)];
 
-	// Lagrange polynoms: pij = is 1 on corner ij and 0 elsewhere
+    // Lagrange polynoms: pij = is 1 on corner ij and 0 elsewhere
     float p00 = (1 - s) * (1 - t);
     float p10 = s * (1 - t);
     float p01 = (1 - s) * t;
     float p11 = s * t;
 
     float v = v00 * p00 + v10 * p10 + v01 * p01 + v11 * p11;
-	//LogMsg("vij: %f, %f, %f, %f; v: %f", v00, v10, v01, v11, v)
+    // LogMsg("vij: %f, %f, %f, %f; v: %f", v00, v10, v01, v11, v)
     return v;
 }
 
 // return "some neighbor" has extended snow
-bool
-DepthMap::is_extended_snow(float lon, float lat) const
-{
+bool DepthMap::IsExtendedSnow(float lon, float lat) const {
     // our snow world map is 3600x1801 [0,359.9]x[0,180.0]
     lat += 90.0;
 
@@ -121,17 +114,15 @@ DepthMap::is_extended_snow(float lon, float lat) const
     int i_lon = lon;
     int i_lat = lat;
 
-    //LogMsg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
-    bool es00 = extended_snow_[map_idx(i_lon, i_lat)];
-    bool es10 = extended_snow_[map_idx(i_lon + 1, i_lat)];
-    bool es01 = extended_snow_[map_idx(i_lon, i_lat + 1)];
-    bool es11 = extended_snow_[map_idx(i_lon + 1, i_lat + 1)];
+    // LogMsg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
+    bool es00 = extended_snow_[MapIdx(i_lon, i_lat)];
+    bool es10 = extended_snow_[MapIdx(i_lon + 1, i_lat)];
+    bool es01 = extended_snow_[MapIdx(i_lon, i_lat + 1)];
+    bool es11 = extended_snow_[MapIdx(i_lon + 1, i_lat + 1)];
     return (es00 || es01 || es10 || es11);
 }
 
-void
-DepthMap::load_csv(const char *csv_name)
-{
+void DepthMap::LoadCSV(const char* csv_name) {
     std::ifstream file(csv_name);
     if (!file.is_open()) {
         LogMsg("Error opening file: %s", csv_name);
@@ -171,21 +162,19 @@ DepthMap::load_csv(const char *csv_name)
     LogMsg("Loaded %d lines from CSV file '%s'", counter, csv_name);
 
     // use multiple passes for snow extension, e.g. for fjords, islands close to coast, ...
-    extend_coastal_snow();
-    extend_coastal_snow();
-    extend_coastal_snow();
+    ExtendCoastalSnow();
+    ExtendCoastalSnow();
+    ExtendCoastalSnow();
 }
 
-void
-DepthMap::extend_coastal_snow()
-{
-    static constexpr float min_sd = 0.02f; // only go higher than this snow depth
+void DepthMap::ExtendCoastalSnow() {
+    static constexpr float min_sd = 0.02f;  // only go higher than this snow depth
     int n_extend = 0;
 
     for (int i = 0; i < width_; i++) {
         for (int j = 0; j < height_; j++) {
-            float sd = val_[map_idx(i, j)];
-            static constexpr int max_step = 2; // to look for inland snow ~ 10 to 20 km / step
+            float sd = val_[MapIdx(i, j)];
+            static constexpr int max_step = 2;  // to look for inland snow ~ 10 to 20 km / step
             float lon = i * resolution_;
             float lat = j * resolution_ - 90.0f;
             auto [is_coast, dir_x, dir_y, dir_angle] = coast_map.is_coast(lon, lat);
@@ -199,24 +188,24 @@ DepthMap::extend_coastal_snow()
                     float lon = ii * resolution_;
                     float lat = jj * resolution_ - 90.0f;
 
-                    if (k < max_step && coast_map.is_water(lon, lat)) { // if possible skip water
+                    if (k < max_step && coast_map.is_water(lon, lat)) {  // if possible skip water
                         continue;
                     }
 
-                    float tmp = val_[map_idx(ii, jj)];
-                    if (tmp > sd && tmp > min_sd) { // found snow
+                    float tmp = val_[MapIdx(ii, jj)];
+                    if (tmp > sd && tmp > min_sd) {  // found snow
                         inland_dist = k;
                         inland_sd = tmp;
                         break;
                     }
                 }
 
-                static constexpr float decay = 0.8f; // snow depth decay per step
+                static constexpr float decay = 0.8f;  // snow depth decay per step
                 if (inland_dist > 0) {
-					//LogMsg("Inland snow detected for (%d, %d) at dist %d, sd: %0.3f %0.3f",
-					//		  i, j, inland_dist, sd, inland_sd)
+                    // LogMsg("Inland snow detected for (%d, %d) at dist %d, sd: %0.3f %0.3f",
+                    //		  i, j, inland_dist, sd, inland_sd)
 
-					// use exponential decay law from inland point to coast line point
+                    // use exponential decay law from inland point to coast line point
                     for (int k = inland_dist - 1; k >= 0; k--) {
                         inland_sd *= decay;
                         if (inland_sd < min_sd) {

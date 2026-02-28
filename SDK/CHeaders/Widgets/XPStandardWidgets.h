@@ -12,12 +12,12 @@
  ***************************************************************************/
 /*
  * ## THEORY OF OPERATION
- * 
+ *
  * The standard widgets are widgets built into the widgets library. While you
  * can gain access to the widget function that drives them, you generally use
  * them by calling XPCreateWidget and then listening for special messages,
  * etc.
- * 
+ *
  * The standard widgets often send messages to themselves when the user
  * performs an event; these messages are sent up the widget hierarchy until
  * they are handled. So you can add a widget proc directly to a push button
@@ -49,7 +49,7 @@ extern "C" {
 
 /*
  * Main Window Type Values
- * 
+ *
  * These type values are used to control the appearance of a main window.
  *
  */
@@ -105,7 +105,7 @@ enum {
 
 /*
  * SubWindow Type Values
- * 
+ *
  * These values control the appearance of the subwindow.
  *
  */
@@ -142,12 +142,12 @@ enum {
  * behaviors, including push buttons, radio buttons, check boxes, etc. The
  * button label appears on or next to the button depending on the button's
  * appearance or type.
- * 
+ *
  * The button's behavior is a separate property that dictates who it
  * highlights and what kinds of messages it sends. Since behavior and type are
  * different, you can do strange things like make check boxes that act as push
  * buttons or push buttons with radio button behavior.
- * 
+ *
  * In X-Plane 6 there were no check box graphics. The result is the following
  * behavior: in X-Plane
  * 6 all check box and radio buttons are round (radio-button style) buttons;
@@ -162,7 +162,7 @@ enum {
 
 /*
  * Button Types
- * 
+ *
  * These define the visual appearance of buttons but not how they respond to
  * the mouse.
  *
@@ -173,7 +173,7 @@ enum {
     xpPushButton                             = 0,
 
     /* A check box or radio button.  Use this and the button behaviors below to   *
-     * get the desired behavior.                                                  */
+     * Get the desired behavior.                                                  */
     xpRadioButton                            = 1,
 
     /* A window close box.                                                        */
@@ -190,7 +190,7 @@ enum {
 
 /*
  * Button Behavior Values
- * 
+ *
  * These define how the button responds to mouse clicks.
  *
  */
@@ -235,7 +235,7 @@ enum {
 
 /*
  * Button Messages
- * 
+ *
  * These messages are sent by the button to itself and then up the widget
  * chain when the button is clicked. (You may intercept them by providing a
  * widget handler for the button itself or by providing a handler in a parent
@@ -266,15 +266,15 @@ enum {
  * The text field widget provides an editable text field including mouse
  * selection and keyboard navigation. The contents of the text field are its
  * descriptor. (The descriptor changes as the user types.)
- * 
+ *
  * The text field can have a number of types, that affect the visual layout of
  * the text field. The text field sends messages to itself so you may control
  * its behavior.
- * 
+ *
  * If you need to filter keystrokes, add a new handler and intercept the key
  * press message. Since key presses are passed by pointer, you can modify the
  * keystroke and pass it through to the text field widget.
- * 
+ *
  * WARNING: in X-Plane before 7.10 (including 6.70) null characters could
  * crash X-Plane. To prevent this, wrap this object with a filter function
  * (more instructions can be found on the SDK website).
@@ -286,7 +286,7 @@ enum {
 
 /*
  * Text Field Type Values
- * 
+ *
  * These control the look of the text field.
  *
  */
@@ -373,7 +373,7 @@ enum {
 
 /*
  * Scroll Bar Type Values
- * 
+ *
  * This defines how the scroll bar looks.
  *
  */
@@ -465,7 +465,7 @@ enum {
 
 /*
  * General Graphics Types Values
- * 
+ *
  * These define the icon for the general graphics.
  *
  */

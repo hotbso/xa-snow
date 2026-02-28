@@ -113,7 +113,7 @@ MapTexture::check_image()
     if (snod_map == nullptr)
         return false;
 
-    if (snod_seqno_ != snod_map->seqno())   // have map of stale revision
+    if (snod_seqno_ != snod_map->SeqNo())   // have map of stale revision
         valid_ = false;
 
     if (valid_)
@@ -140,7 +140,7 @@ MapTexture::check_image()
     for (int j = 0; j < height; j++) {
         float lon = left_lon_;
         for (int i = 0; i < width; i++) {
-            float sd = snod_map->get(lon, lat);
+            float sd = snod_map->Get(lon, lat);
             //LogMsg("(%d, %d), sd: %0.3f", i, j, sd);
 
             bool is_coast = false;
@@ -161,7 +161,7 @@ MapTexture::check_image()
                 static constexpr int ofs = 50;
                 uint8_t a = ofs + sd * (255 - ofs);
                 Pixel pixel;
-                if (debug_colors && snod_map->is_extended_snow(lon, lat))
+                if (debug_colors && snod_map->IsExtendedSnow(lon, lat))
                     pixel = RGBA(a, 0, a);
                 else
                     pixel = RGBA(0, a, a);
@@ -192,7 +192,7 @@ MapTexture::check_image()
     }
 
     valid_ = true;
-    snod_seqno_ = snod_map->seqno();
+    snod_seqno_ = snod_map->SeqNo();
     LogMsg("texture created, width: %d, height: %d", width, height);
     return true;
 }
