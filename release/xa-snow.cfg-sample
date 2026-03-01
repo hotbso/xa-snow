@@ -1,0 +1,10 @@
+# Place this file into the folder of a customn scenery and edit accordingly
+#
+# Max snow depth on this legacy airport
+#
+# For example:
+# - XP11 legacy airport with X-Plane ground polys (e.g. Taimodels ENGM): 0.07
+# - Airport converted from p3d where ground is built from .obj files (e.g. Aerosoft EDDB although claimed as XP12 compatible): 0.011
+#
+# Note that everything <= 0.01 is effectively 0
+max_snow_depth=0.07

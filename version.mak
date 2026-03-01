@@ -1,1 +1,1 @@
-VERSION=dev
+VERSION=v2.4.0
