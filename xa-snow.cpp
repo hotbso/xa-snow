@@ -22,14 +22,6 @@
 
 // Coding style is loosely following Google's guide: https://google.github.io/styleguide/cppguide.html
 
-// ===============================================================================
-// XP 12.3.0+ private datarefs for snow are (re-)set per loop so the plugin must
-// set them in each flight loop callback
-// while
-// XP 12.4.0+ private datarefs are sticky and keep their value and need to be reset on
-// plugin disable or e.g. move to a different airport
-// ===============================================================================
-
 #include <cstring>
 #include <cstdio>
 #include <string>
@@ -51,8 +43,6 @@
 
 #include "version.h"
 
-static constexpr int kXP12_4 = 124000;  // X-Plane 12.4.0 internal version number
-
 const char *log_msg_prefix = "xa-snow: ";
 
 std::string xp_dir, plugin_dir, output_dir, pref_path;
@@ -62,20 +52,16 @@ XPLMProbeRef probe_ref;
 
 static XPLMDataRef weather_mode_dr, rwy_cond_dr, sys_time_dr,
     sim_current_month_dr, sim_current_day_dr, sim_local_hours_dr,
-    snow_dr, ice_dr, rwy_snow_dr, framerate_period_dr, sim_version_dr,
-    msl_temperature_dr;
+    snow_dr, ice_dr, rwy_snow_dr, framerate_period_dr, msl_temperature_dr;
 
 static XPLMMenuID xas_menu;
-static int xp_version;
 
 static bool private_drefs_inited;
 
 static const std::array<float, 7> snow_depth_tab      = {0.01f, 0.02f, 0.03f, 0.05f, 0.10f, 0.20f, 0.25f};
-static const std::array<float, 7> snow_now_tab_pre_124= {0.90f, 0.70f, 0.60f, 0.30f, 0.15f, 0.06f, 0.05f};
-static const std::array<float, 7> snow_now_tab_post_124={0.23f, 0.27f, 0.40f, 0.50f, 0.60f, 0.80f, 0.90f};
+static const std::array<float, 7> snow_now_tab        = {0.23f, 0.27f, 0.40f, 0.50f, 0.60f, 0.80f, 0.90f};
 static const std::array<float, 7> snow_area_width_tab = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.29f, 0.33f};
-static const std::array<float, 7> ice_now_tab_pre_124 = {2.00f, 2.00f, 2.00f, 2.00f, 0.80f, 0.37f, 0.37f};
-static const std::array<float, 7> ice_now_tab_post_124= {0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
+static const std::array<float, 7> ice_now_tab         = {0.05f, 0.06f, 0.15f, 0.30f, 0.60f, 0.70f, 0.90f};
 
 static float snow_now_0, ice_now_0, snow_area_width_0;    // initial values with no snow
 static float snow_depth;                      // current snow depth, exported as dref for debugging
@@ -88,20 +74,13 @@ static int override_item, no_rwy_ice_item, historical_item, autoupdate_item, tem
 static int loop_cnt;
 
 std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth) { // snowNow, snowAreaWidth, iceNow
-    auto const& snow_now_tab = (xp_version >= kXP12_4 ? snow_now_tab_post_124 : snow_now_tab_pre_124);
-    auto const& ice_now_tab = (xp_version >= kXP12_4 ? ice_now_tab_post_124 : ice_now_tab_pre_124);
-
     float snow_now_value = snow_now_0;
     float ice_now_value = ice_now_0;
     float snow_area_width_value = snow_area_width_0;
 
     // high value clamp
-    if (depth >= snow_depth_tab.back()) {
-        if (xp_version < kXP12_4 && pref_no_rwy_ice)
-            return std::make_tuple(snow_now_tab.back(), snow_area_width_0, ice_now_0);
-
+    if (depth >= snow_depth_tab.back())
         return std::make_tuple(snow_now_tab.back(), snow_area_width_tab.back(), ice_now_tab.back());
-    }
 
     // low value clamp
     if (depth <= snow_depth_tab.front()) {
@@ -119,11 +98,6 @@ std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth) { // snowN
             ice_now_value = ice_now_tab[i] + x * (ice_now_tab[i + 1] - ice_now_tab[i]);
             break;
         }
-    }
-
-    if (xp_version < kXP12_4 && pref_no_rwy_ice) {
-        ice_now_value = ice_now_0;
-        snow_area_width_value = snow_area_width_0;
     }
 
     return std::make_tuple(snow_now_value, snow_area_width_value, ice_now_value);
@@ -321,31 +295,13 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
 
     snow_depth_prev = snow_depth;
 
-    // preserve the past with all its bugs and features
-    if (xp_version < kXP12_4) {
-        float rwy_cond = XPLMGetDataf(rwy_cond_dr);
-
-        if (pref_no_rwy_ice)
-            rwy_cond = 0.0f;
-
-        XPLMSetDataf(snow_dr, snow_now);
-        XPLMSetDataf(rwy_snow_dr, rwy_snow);
-        XPLMSetDataf(ice_dr, ice_now);
-        if (rwy_cond >= 4.0f) {
-            rwy_cond = rwy_cond / 3.0f;
-            XPLMSetDataf(rwy_cond_dr, rwy_cond);
-        }
-        return -1;
-    }
-
-    // XP 12.4.0+ processing
     // Runway condition (=friction) is controlled by X-Plane's weather evolution (precipitation?)
     // and not directly by setting the snow/ice-related datarefs.
     // Therefore in case of no_rwy_ice we just clamp values to some minimal effects.
     float rwy_cond = XPLMGetDataf(rwy_cond_dr);
 
     if (pref_no_rwy_ice) {
-        ice_now = std::min(ice_now, ice_now_tab_post_124[1]);   // some minimal ice effect
+        ice_now = std::min(ice_now, ice_now_tab[1]);   // some minimal ice effect
         rwy_snow = std::min(rwy_snow, snow_area_width_tab[1]); // some minimal snow effect
         rwy_cond = std::min(rwy_cond, 6.0f);    // 6 = last below snow/ice effect
     }
@@ -408,10 +364,6 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
 
     msl_temperature_dr = XPLMFindDataRef("sim/weather/temperature_sealevel_c");
 
-    sim_version_dr = XPLMFindDataRef("sim/version/xplane_internal_version");
-    xp_version = XPLMGetDatai(sim_version_dr);
-    LogMsg("X-Plane version: %d", xp_version);
-
     probeinfo.structSize = sizeof(XPLMProbeInfo_t);
     probe_ref = XPLMCreateProbe(xplm_ProbeY);
 
@@ -444,15 +396,10 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     LogMsg("XPluginStart done, xp_dir: '%s'", xp_dir.c_str());
 
     // set 0 values for various reset operations
-    if (xp_version >= kXP12_4) {
-        snow_now_0 = 0.0f;
-        ice_now_0 = 0.0f;
-    } else {
-        snow_now_0 = 1.25f;
-        ice_now_0 = 2.0f;
-    }
+    snow_now_0 = 0.0f;
+    ice_now_0 = 0.0f;
 
-    snow_area_width_0 =  snow_area_width_tab.front();
+    snow_area_width_0 =  snow_area_width_tab[0];
 
     LogMsg("snow_now_0: %f, ice_now_0: %f, snow_area_width_0: %f",
             snow_now_0, ice_now_0, snow_area_width_0);
