@@ -61,7 +61,7 @@ int DepthMap::MapIdx(int i_lon, int i_lat) const {
     return idx;
 }
 
-float DepthMap::Get(float lon, float lat) const {
+std::tuple<float, bool> DepthMap::Get(float lon, float lat) const {
     // our snow world's (lat, lon) is in [0,360) x [0, 180]
     lat += 90.0;
 
@@ -81,10 +81,16 @@ float DepthMap::Get(float lon, float lat) const {
     float t = lat - i_lat;
 
     // LogMsg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
-    float v00 = val_[MapIdx(i_lon, i_lat)];
-    float v10 = val_[MapIdx(i_lon + 1, i_lat)];
-    float v01 = val_[MapIdx(i_lon, i_lat + 1)];
-    float v11 = val_[MapIdx(i_lon + 1, i_lat + 1)];
+
+    int i00 = MapIdx(i_lon, i_lat);
+    int i10 = MapIdx(i_lon + 1, i_lat);
+    int i01 = MapIdx(i_lon, i_lat + 1);
+    int i11 = MapIdx(i_lon + 1, i_lat + 1);
+
+    float v00 = val_[i00];
+    float v10 = val_[i10];
+    float v01 = val_[i01];
+    float v11 = val_[i11];
 
     // Lagrange polynoms: pij = is 1 on corner ij and 0 elsewhere
     float p00 = (1 - s) * (1 - t);
@@ -94,32 +100,14 @@ float DepthMap::Get(float lon, float lat) const {
 
     float v = v00 * p00 + v10 * p10 + v01 * p01 + v11 * p11;
     // LogMsg("vij: %f, %f, %f, %f; v: %f", v00, v10, v01, v11, v)
-    return v;
-}
 
-// return "some neighbor" has extended snow
-bool DepthMap::IsExtendedSnow(float lon, float lat) const {
-    // our snow world map is 3600x1801 [0,359.9]x[0,180.0]
-    lat += 90.0;
+    bool es00 = extended_snow_[i00];
+    bool es10 = extended_snow_[i10];
+    bool es01 = extended_snow_[i01];
+    bool es11 = extended_snow_[i11];
 
-    // longitude is -180 to 180, we need to convert it to 0 to 360
-    if (lon < 0) {
-        lon += 360;
-    }
-
-    lon /= resolution_;
-    lat /= resolution_;
-
-    // index of tile is lower left corner
-    int i_lon = lon;
-    int i_lat = lat;
-
-    // LogMsg("(%f, %f) -> (%d, %d) (%f, %f)", lon/10, lat/10 - 90, i_lon, i_lat, s, t)
-    bool es00 = extended_snow_[MapIdx(i_lon, i_lat)];
-    bool es10 = extended_snow_[MapIdx(i_lon + 1, i_lat)];
-    bool es01 = extended_snow_[MapIdx(i_lon, i_lat + 1)];
-    bool es11 = extended_snow_[MapIdx(i_lon + 1, i_lat + 1)];
-    return (es00 || es01 || es10 || es11);
+    bool es = es00 || es10 || es01 || es11;
+    return std::tuple(v, es);
 }
 
 void DepthMap::LoadCSV(const char* csv_name) {

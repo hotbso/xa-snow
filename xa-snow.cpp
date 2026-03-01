@@ -62,7 +62,8 @@ XPLMProbeRef probe_ref;
 
 static XPLMDataRef weather_mode_dr, rwy_cond_dr, sys_time_dr,
     sim_current_month_dr, sim_current_day_dr, sim_local_hours_dr,
-    snow_dr, ice_dr, rwy_snow_dr, framerate_period_dr, sim_version_dr;
+    snow_dr, ice_dr, rwy_snow_dr, framerate_period_dr, sim_version_dr,
+    msl_temperature_dr;
 
 static XPLMMenuID xas_menu;
 static int xp_version;
@@ -80,14 +81,13 @@ static float snow_now_0, ice_now_0, snow_area_width_0;    // initial values with
 static float snow_depth;                      // current snow depth, exported as dref for debugging
 
 // preferences
-static int pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate;
+static int pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_temp_correction;
 // associated menu ids
-static int override_item, no_rwy_ice_item, historical_item, autoupdate_item;
+static int override_item, no_rwy_ice_item, historical_item, autoupdate_item, temp_correction_item;
 
 static int loop_cnt;
 
-std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth)  // snowNow, snowAreaWidth, iceNow
-{
+std::tuple<float, float, float> SnowDepthToXplaneSnowNow(float depth) { // snowNow, snowAreaWidth, iceNow
     auto const& snow_now_tab = (xp_version >= kXP12_4 ? snow_now_tab_post_124 : snow_now_tab_pre_124);
     auto const& ice_now_tab = (xp_version >= kXP12_4 ? ice_now_tab_post_124 : ice_now_tab_pre_124);
 
@@ -134,12 +134,12 @@ static void SavePrefs() {
     if (NULL == f)
         return;
 
-    fprintf(f, "%d,%d,%d,%d", pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate);
+    fprintf(f, "%d,%d,%d,%d,%d", pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_temp_correction);
     fclose(f);
 
     LogMsg("Saving preferences to '%s'", pref_path.c_str());
-    LogMsg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d",
-            pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate);
+    LogMsg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_temp_correction: %d",
+            pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_temp_correction);
 }
 
 static void LoadPrefs() {
@@ -149,12 +149,12 @@ static void LoadPrefs() {
 
     LogMsg("Loading preferences from '%s'", pref_path.c_str());
 
-    [[maybe_unused]] int n = fscanf(f, "%i,%i,%i,%i", &pref_override, &pref_no_rwy_ice, &pref_historical,
-                                    &pref_autoupdate);
+    [[maybe_unused]] int n = fscanf(f, "%i,%i,%i,%i,%i", &pref_override, &pref_no_rwy_ice, &pref_historical,
+                                    &pref_autoupdate, &pref_temp_correction);
     fclose(f);
 
-    LogMsg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d",
-            pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate);
+    LogMsg("pref_override: %d, pref_no_rwy_ice: %d, pref_historical: %d, pref_autoupdate: %d, pref_temp_correction: %d",
+            pref_override, pref_no_rwy_ice, pref_historical, pref_autoupdate, pref_temp_correction);
 }
 
 static void MenuCB([[maybe_unused]] void* menu_ref, void* item_ref) {
@@ -170,6 +170,8 @@ static void MenuCB([[maybe_unused]] void* menu_ref, void* item_ref) {
         loop_cnt = 0;  // reload snow
     } else if (pref == &pref_autoupdate) {
         item = autoupdate_item;
+    } else if (pref == &pref_temp_correction) {
+        item = temp_correction_item;
     } else
         return;
 
@@ -204,8 +206,9 @@ static bool InitPrivateDrefs() {
 static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
                           [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
                           [[maybe_unused]] void* inRefcon) {
-    static float snow_depth_n, snow_depth_prev, snow_now, rwy_snow, ice_now, alpha;
-    static bool legacy_airport_range;
+    static float snow_depth_n, snow_depth_prev, snow_now, rwy_snow, ice_now, alpha, ground_temperature;
+    static bool legacy_airport_range, is_extended_snow;
+    static constexpr float es_temp_threshold = 3.0f;  // °C, above this we assume reduced snow depth for extended snow
 
     if (loop_cnt == 0) {
         loop_cnt++;
@@ -235,6 +238,7 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
         // set to known "no snow" values
         snow_depth = 0.0f;
         std::tie(snow_now, rwy_snow, ice_now) = SnowDepthToXplaneSnowNow(snow_depth);
+        ground_temperature = es_temp_threshold;
         return 3.0f;
     }
 
@@ -254,26 +258,50 @@ static float FlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
     if (loop_cnt % 8 == 0) {
         float lon = XPLMGetDataf(plane_lon_dr);
         float lat = XPLMGetDataf(plane_lat_dr);
-        snow_depth_n = snod_map->Get(lon, lat);
 
-        std::tie<float, bool>(snow_depth_n, legacy_airport_range) = LegacyAirportSnowDepth(lon, lat, snow_depth_n);
+        std::tie(snow_depth_n, is_extended_snow) = snod_map->Get(lon, lat);
+        std::tie(snow_depth_n, legacy_airport_range) = LegacyAirportSnowDepth(lon, lat, snow_depth_n);
 
         if (!legacy_airport_range) {
             // do "over water close to coast" processing
             auto [is_water, have_nl, nl_lon, nl_lat] = coast_map.nearest_land(lon, lat);
             if (is_water && have_nl) {
-                float snow_depth_n1 = snod_map->Get(nl_lon, nl_lat);
+                float snow_depth_n1;
+                std::tie(snow_depth_n1, is_extended_snow) = snod_map->Get(nl_lon, nl_lat);
                 // LogMsg("nl snow: %0.2f", snow_depth_n1);
                 snow_depth_n = std::max(snow_depth_n, snow_depth_n1);
             }
         }
 
+        if (pref_temp_correction && is_extended_snow) {
+            // If we have extended snow and are above the temperature threshold, we apply a reduction factor.
+            // get a rough estimate of ground elevation first
+            float ground_elevation = XPLMGetDataf(plane_elevation_dr) - XPLMGetDataf(plane_y_agl_dr);
+            if (ground_elevation < 0.0f)
+                ground_elevation = 0.0f;
+
+            // then estimate ground temperature from MSL temperature and elevation
+            float msl_temperature = XPLMGetDataf(msl_temperature_dr);
+            float ground_temperature_n = msl_temperature - ground_elevation * 0.0065f;  // 0.0065f is the standard temperature lapse rate in °C/m
+
+            // get a smooth transition from reagular snow to extended snow
+            ground_temperature = alpha * ground_temperature_n + (1 - alpha) * ground_temperature;
+
+            if (ground_temperature > es_temp_threshold) {
+                float old_snow_depth_n = snow_depth_n;
+                snow_depth_n = snow_depth_n * exp(-0.25f * (ground_temperature - es_temp_threshold));
+                if (loop_cnt % 128 == 0)
+                    LogMsg("Extended snow but ground temperature is %0.1f °C, reduced snow depth from %0.3f m to %0.3f m", ground_temperature, old_snow_depth_n, snow_depth_n);
+            }
+        } else
+            ground_temperature = es_temp_threshold;
+
         static constexpr float decay_time = 10.0f;  // s
         alpha = XPLMGetDataf(framerate_period_dr) / decay_time;
+        snow_depth = alpha * snow_depth_n + (1 - alpha) * snow_depth;
         std::tie(snow_now, rwy_snow, ice_now) = SnowDepthToXplaneSnowNow(snow_depth);
-    }
-
-    snow_depth = alpha * snow_depth_n + (1 - alpha) * snow_depth;
+    } else
+        snow_depth = alpha * snow_depth_n + (1 - alpha) * snow_depth;
 
     // If we don't have accumulated snow leave the datarefs alone and
     // let X-Plane do its weather effect things
@@ -378,6 +406,8 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     sim_local_hours_dr = XPLMFindDataRef("sim/cockpit2/clock_timer/local_time_hours");
     framerate_period_dr = XPLMFindDataRef("sim/time/framerate_period");
 
+    msl_temperature_dr = XPLMFindDataRef("sim/weather/temperature_sealevel_c");
+
     sim_version_dr = XPLMFindDataRef("sim/version/xplane_internal_version");
     xp_version = XPLMGetDatai(sim_version_dr);
     LogMsg("X-Plane version: %d", xp_version);
@@ -398,11 +428,12 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     no_rwy_ice_item = XPLMAppendMenuItem(xas_menu, "Lock Elsa up (ice)", &pref_no_rwy_ice, 0);
     historical_item = XPLMAppendMenuItem(xas_menu, "Enable Historical Snow", &pref_historical, 0);
     autoupdate_item = XPLMAppendMenuItem(xas_menu, "Enable Snow Depth Auto Update", &pref_autoupdate, 0);
-
+    temp_correction_item = XPLMAppendMenuItem(xas_menu, "Enable Temperature Correction for extended snow", &pref_temp_correction, 0);
     XPLMCheckMenuItem(xas_menu, override_item, pref_override ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     XPLMCheckMenuItem(xas_menu, no_rwy_ice_item, pref_no_rwy_ice ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     XPLMCheckMenuItem(xas_menu, historical_item, pref_historical ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     XPLMCheckMenuItem(xas_menu, autoupdate_item, pref_autoupdate ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+    XPLMCheckMenuItem(xas_menu, temp_correction_item, pref_temp_correction ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 
     MapLayerStartHook();
 

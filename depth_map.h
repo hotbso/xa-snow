@@ -39,8 +39,7 @@ class DepthMap {
  public:
     DepthMap(float resolution);     // in fractions of 1° e.g. 0.25
     ~DepthMap() { LogMsg("DepthMap destroyed: %d", seqno_); }
-    float Get(float lon, float lat) const;
-    bool IsExtendedSnow(float lon, float lat) const;
+    std::tuple<float, bool> Get(float lon, float lat) const;    // return snow depth and "some neighbor" has extended snow
     void LoadCSV(const char *csv_name);
     int SeqNo() const { return seqno_; }
 };

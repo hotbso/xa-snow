@@ -128,7 +128,7 @@ CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path)
         for (int j = 0; j < kHeight; j++) {
             float lon = i * 0.1f;
             float lat = j * 0.1f - 90.0f;
-            float sd = snod_map.Get(lon, lat);
+            auto [sd, is_extended] = snod_map.Get(lon, lat);
             if (sd <= 0.01f)
                 continue;
 
@@ -141,7 +141,7 @@ CreateSnowMapPng(DepthMap& snod_map, const std::string& png_path)
             uint32_t pixel;
             static constexpr int ofs = 70;
             uint8_t a = ofs + sd * (255 - ofs);
-            if (snod_map.IsExtendedSnow(lon,lat)) {
+            if (is_extended) {
                 pixel = RGBA(a, 0, a);
             } else {
                 pixel = RGBA(0, a, a);

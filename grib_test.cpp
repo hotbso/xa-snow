@@ -29,6 +29,7 @@
 #include <stdio.h>
 
 #include "xa-snow.h"
+#include "depth_map.h"
 #include "coast_map.h"
 
 const char *log_msg_prefix = "gt: ";
@@ -77,6 +78,9 @@ int main()
     flightloop_emul();
 
     std::cout << "-------------------------------------------------\n\n";
+    auto [snow_depth, is_extended] = snod_map->Get(7.210937, 43.660034);    // LFMN
+
+    LogMsg("snow_depth: %0.3f, is_extended: %d", snow_depth, is_extended);
 
 #if 0
     StartAsyncDownload(false, 2, 10, 21);
