@@ -77,6 +77,9 @@ This may work for you or not.
 When enabled during a longer a flight xa-snow updates snow depth data. As downloading and (one-time) preprocessing of snow data is quite resource heavy use this option with care.\
 As this may lead to stability issues the option may go away in future updates.
 
+**Enable Temperature Correction for extended snow**\
+Let extended coastal snow melt if the temperature on ground is high. Limits unwanted snow on shorelines with high ambient temperatures, e.g. LFMN.
+
 ### Limit snow for legacy airports
 Legacy (= mostly XP11) sceneries do not feature weather aware textures and show way too much snow making runways and taxiways unusable.
 Unfortunately there are even different generations of 'legacy' that cannot be detected automatically.
