@@ -1,3 +1,5 @@
+# This plugin is now obsolete. X-Plane 12.4.4 natively supports accumulated snow.
+
 # xa-snow plugin for X-Plane
 
 Accumulated snow for X-Plane 12 created by https://github.com/zodiac1214 .
